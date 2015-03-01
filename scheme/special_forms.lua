@@ -1,9 +1,9 @@
 local special_forms = {}
 
-local util = require "util"
+local util = require "scheme.util"
 
 special_forms["."] = function(self, env, args)
-    local types = require "types"
+    local types = require "scheme.types"
 
     util.expect_argc_min(self, 1, #args)
 
@@ -98,7 +98,7 @@ special_forms["define"] = function(self, env, args)
         local argslist = var:cdr()
         local funcargs, vararg = parse_argslist(argslist)
 
-        local types = require "types"
+        local types = require "scheme.types"
         local func  = types.mkfunction(env:derive(funcname), funcargs, val)
 
         func.name   = funcname
@@ -118,7 +118,7 @@ special_forms["lambda"] = function(self, env, args)
 
     local funcargs, vararg = parse_argslist(argslist:getval())
 
-    local types = require "types"
+    local types = require "scheme.types"
     local func = types.mkfunction(env:derive("lambda"), funcargs, body)
 
     func.vararg = vararg
@@ -164,7 +164,7 @@ special_forms["let"] = function(self, env, args)
     local bindings, body = table.unpack(args)
     local params, args = parse_bindings(bindings)
 
-    local types = require "types"
+    local types = require "scheme.types"
 
     local lam = {
         special_forms["lambda"](self, env, { types.mklist(params), body})
@@ -191,7 +191,7 @@ special_forms["let*"] = function(self, env, args)
 
     util.expect(bindings, "list")
 
-    local types = require "types"
+    local types = require "scheme.types"
     local params, args = parse_bindings(bindings)
 
     local function mklambdas(i)

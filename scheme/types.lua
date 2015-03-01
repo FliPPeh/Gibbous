@@ -1,7 +1,7 @@
 local types = {}
 
-local util = require "util"
-local special_forms = require "special_forms"
+local util = require "scheme.util"
+local special_forms = require "scheme.special_forms"
 
 local ascii_names = {
     "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL",

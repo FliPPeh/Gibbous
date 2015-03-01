@@ -1,6 +1,6 @@
 local env = {}
 
-local parser = require "parser"
+local parser = require "scheme.parser"
 
 
 local env_meta

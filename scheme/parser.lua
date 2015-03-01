@@ -1,7 +1,7 @@
 local parser = {}
 local parser_meta = {}
 
-local types = require "types"
+local types = require "scheme.types"
 
 
 function parser.new(input)
