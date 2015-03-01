@@ -1,0 +1,27 @@
+A very basic Scheme implementation hosted on Lua, with basic Scheme to Lua
+interoperability.
+
+Although it does not do so yet, it may at some point conform to
+the R*RS specifications.
+
+Lazy overview:
+
+Implemented:
+ * Language primitves:
+   - let, let*, if, define, lambda, quote, do
+
+ * Lua interoperability
+   - (. lua_var) evaluates to "lua_var" translated to Scheme value
+   - (. lua_func ...) evaluates to the return value of lua_func(...) with the
+       necessary type conversions.
+
+Not implemented yet:
+ * Language primitives:
+   - letrec, and possiblity a few I don't know.
+   - Standard library and basic functions (+, -, cons, ...)
+
+ * Lua interoperability
+   - Working with tables, methods, ...
+
+May work:
+ * Proper tail calls
