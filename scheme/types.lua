@@ -242,7 +242,7 @@ types.func = {
     __tostring = function(self)
         return ("(function \"%s\" (%s) %s)"):format(
             self.name or "lambda",
-            table.concat(self.args, " "),
+            table.concat(self.params, " "),
             self.body)
     end,
 
@@ -255,12 +255,12 @@ types.func = {
             return self.env
         end,
 
-        getargs = function(self)
-            return self.args
+        getparams = function(self)
+            return self.params
         end,
 
-        getvararg = function(self)
-            return self.vararg
+        getvarparam = function(self)
+            return self.varparam
         end,
 
         getbody = function(self)
@@ -268,17 +268,17 @@ types.func = {
         end,
 
         call = function(self, env, args)
-            util.expect_argc_min(self, #self:getargs(), #args)
+            util.expect_argc_min(self, #self:getparams(), #args)
 
-            if not self.vararg then
+            if not self:getvarparam() then
                 -- Not variadic, also has an upper bound
-                util.expect_argc_max(self, #self:getargs(), #args)
+                util.expect_argc_max(self, #self:getparams(), #args)
 
                 for i, arg in ipairs(args) do
                     local argv = arg:eval(env)
                     argv:setpos(arg:getpos())
 
-                    self:getenv():define(self:getargs()[i], argv)
+                    self:getenv():define(self:getparams()[i], argv)
                 end
             else
                 local vargs = types.mklist{}
@@ -287,14 +287,14 @@ types.func = {
                     local argv = arg:eval(env)
                     argv:setpos(arg:getpos())
 
-                    if i > #self:getargs() then
+                    if i > #self:getparams() then
                         table.insert(vargs:getval(), argv)
                     else
-                        self:getenv():define(self:getargs()[i], argv)
+                        self:getenv():define(self:getparams()[i], argv)
                     end
                 end
 
-                self:getenv():define(self:getvararg(), vargs)
+                self:getenv():define(self:getvarparam(), vargs)
             end
 
             return self:getbody():eval(self:getenv())
@@ -330,13 +330,13 @@ function types.mksymbol(s)   return setmetatable({v = s},   types.symbol)  end
 function types.mkbool(b)     return setmetatable({v = b},   types.boolean) end
 function types.mkchar(c)     return setmetatable({v = c},   types.char)    end
 
-function types.mkfunction(env, args, body)
+function types.mkfunction(env, params, body)
     return setmetatable({
         env = env,
-        args = args,
+        params = params,
         body = body,
         name = nil,
-        vararg = nil
+        varparam = nil
     }, types.func)
 end
 

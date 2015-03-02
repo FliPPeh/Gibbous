@@ -51,39 +51,39 @@ special_forms["quote"] = function(self, env, args)
     return args[1]
 end
 
-local function parse_argslist(argslist)
-    local funcargs = {}
-    local vararg   = nil
+local function parse_paramslist(paramslist)
+    local funcparams = {}
+    local varparam   = nil
 
-    for i, arg in ipairs(argslist) do
+    for i, arg in ipairs(paramslist) do
         util.expect(arg, "atom", "function parameter")
 
         local argname = arg:getval()
 
         if argname == "." then
-            if i == #argslist then
+            if i == #paramslist then
                 util.err(arg, "expected variadic parameter following")
-            elseif i ~= #argslist - 1 then
-                util.err(argslist[i + 1], "variadic parameter must be last")
+            elseif i ~= #paramslist - 1 then
+                util.err(paramslist[i + 1], "variadic parameter must be last")
             end
 
-            util.expect(argslist[i + 1], "atom", "variadic parameter")
-            vararg = argslist[i + 1]:getval()
+            util.expect(paramslist[i + 1], "atom", "variadic parameter")
+            varparam = paramslist[i + 1]:getval()
             break
         else
-            table.insert(funcargs, argname)
+            table.insert(funcparams, argname)
         end
     end
 
-    return funcargs, vararg
+    return funcparams, varparam
 end
 
-local function create_lambda(defp, env, funcname, funcargs, vararg, body)
+local function create_lambda(defp, env, funcname, funcparams, varparam, body)
     local types = require "scheme.types"
-    local func  = types.mkfunction(env:derive(funcname), funcargs, body)
+    local func  = types.mkfunction(env:derive(funcname), funcparams, body)
 
-    func.name   = funcname
-    func.vararg = vararg
+    func.name     = funcname
+    func.varparam = varparam
     func:setpos(defp:getpos())
 
     return func
@@ -106,23 +106,23 @@ special_forms["define"] = function(self, env, args)
         util.expect(var:car(), "atom", "function name")
 
         local funcname = var:car():getval()
-        local argslist = var:cdr()
-        local funcargs, vararg = parse_argslist(argslist)
+        local paramslist = var:cdr()
+        local funcparams, varparam = parse_paramslist(paramslist)
 
         env:define(funcname,
-            create_lambda(self, env, funcname, funcargs, vararg, val))
+            create_lambda(self, env, funcname, funcparams, varparam, val))
     end
 end
 
 special_forms["lambda"] = function(self, env, args)
     util.expect_argc(self, 2, #args)
 
-    local argslist, body = table.unpack(args)
+    local paramslist, body = table.unpack(args)
 
-    util.expect(argslist, "list")
+    util.expect(paramslist, "list")
 
-    local funcargs, vararg = parse_argslist(argslist:getval())
-    return create_lambda(self, env, "lambda", funcargs, vararg, body)
+    local funcparams, varparam = parse_paramslist(paramslist:getval())
+    return create_lambda(self, env, "lambda", funcparams, varparam, body)
 end
 
 special_forms["do"] = function(self, env, args)
