@@ -128,13 +128,13 @@ special_forms["lambda"] = function(self, env, args)
 end
 
 special_forms["do"] = function(self, env, args)
-    local last
-
     for i, e in ipairs(args) do
-        last = e:eval(env)
+        if i == #args then
+            return e:eval(env)
+        else
+            e:eval(env)
+        end
     end
-
-    return last
 end
 
 
