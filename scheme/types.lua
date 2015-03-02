@@ -251,34 +251,18 @@ types.func = {
             return "function"
         end,
 
-        getenv = function(self)
-            return self.env
-        end,
-
-        getparams = function(self)
-            return self.params
-        end,
-
-        getvarparam = function(self)
-            return self.varparam
-        end,
-
-        getbody = function(self)
-            return self.body
-        end,
-
         call = function(self, env, args)
-            util.expect_argc_min(self, #self:getparams(), #args)
+            util.expect_argc_min(self, #self.params, #args)
 
-            if not self:getvarparam() then
+            if not self.varparam then
                 -- Not variadic, also has an upper bound
-                util.expect_argc_max(self, #self:getparams(), #args)
+                util.expect_argc_max(self, #self.params, #args)
 
                 for i, arg in ipairs(args) do
                     local argv = arg:eval(env)
                     argv:setpos(arg:getpos())
 
-                    self:getenv():define(self:getparams()[i], argv)
+                    self.env:define(self.params[i], argv)
                 end
             else
                 local vargs = types.mklist{}
@@ -287,17 +271,17 @@ types.func = {
                     local argv = arg:eval(env)
                     argv:setpos(arg:getpos())
 
-                    if i > #self:getparams() then
+                    if i > #self.params then
                         table.insert(vargs:getval(), argv)
                     else
-                        self:getenv():define(self:getparams()[i], argv)
+                        self.env:define(self.params[i], argv)
                     end
                 end
 
-                self:getenv():define(self:getvarparam(), vargs)
+                self.env:define(self.varparam, vargs)
             end
 
-            return self:getbody():eval(self:getenv())
+            return self.body:eval(self.env)
         end
     }, types.base)
 }
