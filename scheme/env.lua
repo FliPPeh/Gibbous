@@ -9,7 +9,8 @@ function env.new_environment(lua_env)
     return setmetatable({
         env = {},
         name = "root",
-        lua_env = lua_env or _G
+        lua_env = lua_env or _G,
+        parser = parser.new()
     }, env_meta)
 end
 
@@ -52,7 +53,8 @@ env_meta = {
         end,
 
         eval = function(self, chunk)
-            return self:eval_ast(parser.new(chunk):parse())
+            local ast = self.parser:parse(chunk)
+            return self:eval_ast(ast)
         end,
 
         eval_ast = function(self, ast)

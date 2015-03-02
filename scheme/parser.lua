@@ -4,12 +4,13 @@ local parser_meta = {}
 local types = require "scheme.types"
 
 
-function parser.new(input)
+function parser.new(file)
     return setmetatable({
-        input = input,
+        input = "",
         pos   = 1,
         line  = 1,
-        col   = 1
+        col   = 1,
+        file  = file or "input"
     }, {
         __index = parser_meta,
 
@@ -293,8 +294,16 @@ function parser_meta:parse_value()
     end
 end
 
-function parser_meta:parse()
+function parser_meta:feed(input)
+    self.input = self.input .. input
+end
+
+function parser_meta:parse(input)
     local ast = {}
+
+    if input then
+        self:feed(input)
+    end
 
     self:skip_whitespace()
 
