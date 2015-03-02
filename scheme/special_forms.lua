@@ -162,7 +162,13 @@ special_forms["let"] = function(self, env, args)
     local bindings, body = table.unpack(args)
     local params, args = parse_bindings(bindings)
 
-    return create_lambda(self, env, "let", params, nil, body):call(env, args)
+    local letenv = env:derive("let")
+
+    for i = 1, #params do
+        letenv:define(params[i], args[i]:eval(env))
+    end
+
+    return body:eval(letenv)
 end
 
 special_forms["let*"] = function(self, env, args)
@@ -179,19 +185,17 @@ special_forms["let*"] = function(self, env, args)
 
     util.expect(bindings, "list")
 
-    local types = require "scheme.types"
     local params, args = parse_bindings(bindings)
+    local letenv = env
 
-    -- TODO: Try and avoid manually building and evaluating lists.
-    local function mklambdas(i)
-        return types.mklist{
-            create_lambda(self, env, "let*", {
-                    params[#params - i + 1]
-                }, nil, i == 1 and body or mklambdas(i - 1)),
-            args[#args - i + 1]}
+    for i = 1, #params do
+        local val = args[i]:eval(letenv)
+
+        letenv = letenv:derive("let*-" .. params[i])
+        letenv:define(params[i], val)
     end
 
-    return mklambdas(#params):eval(env)
+    return body:eval(letenv)
 end
 
 special_forms["letrec"] = function(self, env, args)
