@@ -55,16 +55,16 @@ local function parse_paramslist(paramslist)
     local funcparams = {}
     local varparam   = nil
 
-    local defined_args = {}
+    local defined_params = {}
 
-    for i, arg in ipairs(paramslist) do
-        util.expect(arg, "atom", "function parameter")
+    for i, param in ipairs(paramslist) do
+        util.expect(param, "atom", "function parameter")
 
-        local argname = arg:getval()
+        local paramname = param:getval()
 
-        if argname == "." then
+        if paramname == "." then
             if i == #paramslist then
-                util.err(arg, "expected variadic parameter following")
+                util.err(param, "expected variadic parameter following")
             elseif i ~= #paramslist - 1 then
                 util.err(paramslist[i + 1], "variadic parameter must be last")
             end
@@ -73,26 +73,26 @@ local function parse_paramslist(paramslist)
 
             local varpar = paramslist[i + 1]
 
-            if defined_args[varpar:getval()] then
+            if defined_params[varpar:getval()] then
                 util.err(varpar,
                     "parameter with the same name already exists: %s",
                     varpar:getval())
             else
-                defined_args[varpar:getval()] = true
+                defined_params[varpar:getval()] = true
             end
 
             varparam = varpar:getval()
             break
         else
-            if defined_args[argname] then
-                util.err(arg,
+            if defined_params[paramname] then
+                util.err(param,
                     "parameter with the same name already exists: %s",
-                    argname)
+                    paramname)
             else
-                defined_args[argname] = true
+                defined_params[paramname] = true
             end
 
-            table.insert(funcparams, argname)
+            table.insert(funcparams, paramname)
         end
     end
 
