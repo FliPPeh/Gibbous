@@ -78,6 +78,17 @@ local function parse_argslist(argslist)
     return funcargs, vararg
 end
 
+local function create_lambda(defp, env, funcname, funcargs, vararg, body)
+    local types = require "scheme.types"
+    local func  = types.mkfunction(env:derive(funcname), funcargs, body)
+
+    func.name   = funcname
+    func.vararg = vararg
+    func:setpos(defp:getpos())
+
+    return func
+end
+
 special_forms["define"] = function(self, env, args)
     util.expect_argc(self, 2, #args)
 
@@ -98,14 +109,8 @@ special_forms["define"] = function(self, env, args)
         local argslist = var:cdr()
         local funcargs, vararg = parse_argslist(argslist)
 
-        local types = require "scheme.types"
-        local func  = types.mkfunction(env:derive(funcname), funcargs, val)
-
-        func.name   = funcname
-        func.vararg = vararg
-        func:setpos(self:getpos())
-
-        env:define(funcname, func)
+        env:define(funcname,
+            create_lambda(self, env, funcname, funcargs, vararg, val))
     end
 end
 
@@ -117,14 +122,7 @@ special_forms["lambda"] = function(self, env, args)
     util.expect(argslist, "list")
 
     local funcargs, vararg = parse_argslist(argslist:getval())
-
-    local types = require "scheme.types"
-    local func = types.mkfunction(env:derive("lambda"), funcargs, body)
-
-    func.vararg = vararg
-    func:setpos(self:getpos())
-
-    return func
+    return create_lambda(self, env, "lambda", funcargs, vararg, body)
 end
 
 special_forms["do"] = function(self, env, args)
@@ -148,7 +146,7 @@ local function parse_bindings(bindings)
         util.expect(binding, "list")
         util.expect(binding:getval()[1], "atom")
 
-        table.insert(params, binding:getval()[1])
+        table.insert(params, binding:getval()[1]:getval())
         table.insert(args,   binding:getval()[2])
     end
 
@@ -164,17 +162,7 @@ special_forms["let"] = function(self, env, args)
     local bindings, body = table.unpack(args)
     local params, args = parse_bindings(bindings)
 
-    local types = require "scheme.types"
-
-    local lam = {
-        special_forms["lambda"](self, env, { types.mklist(params), body})
-    }
-
-    for i, arg in ipairs(args) do
-        table.insert(lam, arg)
-    end
-
-    return types.mklist(lam):eval(env)
+    return create_lambda(self, env, "let", params, nil, body):call(env, args)
 end
 
 special_forms["let*"] = function(self, env, args)
@@ -194,11 +182,12 @@ special_forms["let*"] = function(self, env, args)
     local types = require "scheme.types"
     local params, args = parse_bindings(bindings)
 
+    -- TODO: Try and avoid manually building and evaluating lists.
     local function mklambdas(i)
         return types.mklist{
-            special_forms["lambda"](self, env, {
-                types.mklist{params[#params - i + 1]},
-                i == 1 and body or mklambdas(i - 1)}),
+            create_lambda(self, env, "let*", {
+                    params[#params - i + 1]
+                }, nil, i == 1 and body or mklambdas(i - 1)),
             args[#args - i + 1]}
     end
 

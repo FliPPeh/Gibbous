@@ -233,37 +233,7 @@ types.list = {
                 end
             end
 
-            -- Check for the minimum required parameters
-            util.expect_argc_min(head, #head:getargs(), #tail)
-
-            if not head.vararg then
-                -- Not variadic, also has an upper bound
-                util.expect_argc_max(head, #head:getargs(), #tail)
-
-                for i, arg in ipairs(tail) do
-                    local argv = arg:eval(env)
-                    argv:setpos(arg:getpos())
-
-                    head:getenv():define(head:getargs()[i], argv)
-                end
-            else
-                local vargs = types.mklist{}
-
-                for i, arg in ipairs(tail) do
-                    local argv = arg:eval(env)
-                    argv:setpos(arg:getpos())
-
-                    if i > #head:getargs() then
-                        table.insert(vargs:getval(), argv)
-                    else
-                        head:getenv():define(head:getargs()[i], argv)
-                    end
-                end
-
-                head:getenv():define(head:getvararg(), vargs)
-            end
-
-            return head:getbody():eval(head:getenv())
+            return head:call(env, tail)
         end
     }, types.base)
 }
@@ -295,6 +265,39 @@ types.func = {
 
         getbody = function(self)
             return self.body
+        end,
+
+        call = function(self, env, args)
+            util.expect_argc_min(self, #self:getargs(), #args)
+
+            if not self.vararg then
+                -- Not variadic, also has an upper bound
+                util.expect_argc_max(self, #self:getargs(), #args)
+
+                for i, arg in ipairs(args) do
+                    local argv = arg:eval(env)
+                    argv:setpos(arg:getpos())
+
+                    self:getenv():define(self:getargs()[i], argv)
+                end
+            else
+                local vargs = types.mklist{}
+
+                for i, arg in ipairs(args) do
+                    local argv = arg:eval(env)
+                    argv:setpos(arg:getpos())
+
+                    if i > #self:getargs() then
+                        table.insert(vargs:getval(), argv)
+                    else
+                        self:getenv():define(self:getargs()[i], argv)
+                    end
+                end
+
+                self:getenv():define(self:getvararg(), vargs)
+            end
+
+            return self:getbody():eval(self:getenv())
         end
     }, types.base)
 }
