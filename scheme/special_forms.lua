@@ -55,6 +55,8 @@ local function parse_paramslist(paramslist)
     local funcparams = {}
     local varparam   = nil
 
+    local defined_args = {}
+
     for i, arg in ipairs(paramslist) do
         util.expect(arg, "atom", "function parameter")
 
@@ -68,9 +70,28 @@ local function parse_paramslist(paramslist)
             end
 
             util.expect(paramslist[i + 1], "atom", "variadic parameter")
-            varparam = paramslist[i + 1]:getval()
+
+            local varpar = paramslist[i + 1]
+
+            if defined_args[varpar:getval()] then
+                util.err(varpar,
+                    "parameter with the same name already exists: %s",
+                    varpar:getval())
+            else
+                defined_args[varpar:getval()] = true
+            end
+
+            varparam = varpar:getval()
             break
         else
+            if defined_args[argname] then
+                util.err(arg,
+                    "parameter with the same name already exists: %s",
+                    argname)
+            else
+                defined_args[argname] = true
+            end
+
             table.insert(funcparams, argname)
         end
     end
@@ -99,6 +120,11 @@ special_forms["define"] = function(self, env, args)
     -- Are we defining a variable or a function?
     if var:type() == "atom" then
         -- variable!
+        if env:is_defined(var:getval()) then
+            util.err(self, "variable or function already defined: %s",
+                var:getval())
+        end
+
         env:define(var:getval(), val:eval(env))
 
     else
@@ -107,6 +133,12 @@ special_forms["define"] = function(self, env, args)
 
         local funcname = var:car():getval()
         local paramslist = var:cdr()
+
+        if env:is_defined(funcname) then
+            util.err(self, "variable or function already defined: %s",
+                funcname)
+        end
+
         local funcparams, varparam = parse_paramslist(paramslist)
 
         env:define(funcname,
@@ -140,14 +172,30 @@ local function parse_bindings(bindings)
     local params = {}
     local args   = {}
 
+    local defined = {}
+
     util.expect(bindings, "list")
 
     for i, binding in ipairs(bindings:getval()) do
         util.expect(binding, "list")
+
+        if #binding:getval() ~= 2 then
+            util.err(binding, "binding must be a list of size 2")
+        end
+
         util.expect(binding:getval()[1], "atom")
 
-        table.insert(params, binding:getval()[1]:getval())
-        table.insert(args,   binding:getval()[2])
+        local bindvar, bindval = table.unpack(binding:getval())
+
+        if defined[bindvar:getval()] then
+            util.err(bindvar, "binding with the same name already exists: %s",
+                bindvar:getval())
+        else
+            defined[bindvar:getval()] = true
+        end
+
+        table.insert(params, bindvar:getval())
+        table.insert(args,   bindval)
     end
 
     return params, args

@@ -72,6 +72,10 @@ env_meta = {
             self.env[var] = val
         end,
 
+        is_defined = function(self, var)
+            return self.env[var] ~= nil
+        end,
+
         resolve = function(self, var)
             -- print(("%s: looking up %s"):format(self.name, var))
             return self.env[var]
