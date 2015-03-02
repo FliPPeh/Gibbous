@@ -125,7 +125,7 @@ special_forms["lambda"] = function(self, env, args)
     return create_lambda(self, env, "lambda", funcparams, varparam, body)
 end
 
-special_forms["do"] = function(self, env, args)
+special_forms["begin"] = function(self, env, args)
     for i, e in ipairs(args) do
         if i == #args then
             return e:eval(env)
