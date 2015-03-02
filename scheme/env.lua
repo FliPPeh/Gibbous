@@ -10,7 +10,8 @@ function env.new_environment(lua_env)
         env = {},
         name = "root",
         lua_env = lua_env or _G,
-        parser = parser.new()
+        parser = parser.new(),
+        root = true
     }, env_meta)
 end
 
@@ -47,7 +48,8 @@ env_meta = {
             return setmetatable({
                 env = setmetatable({}, {__index = self.env}),
                 name = name,
-                lua_env = self.lua_env
+                lua_env = self.lua_env,
+                root = false
 
             }, env_meta)
         end,
