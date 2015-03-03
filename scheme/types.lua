@@ -71,28 +71,55 @@ types.base_meta = {
 --[[
 -- Primitive types
 --]]
-types.atom = {
-    new = function(atom)
+types.symbol = {
+    new = function(sym)
         return setmetatable({
-            v = atom
-        }, types.atom_meta)
+            v = sym
+        }, types.symbol_meta)
     end
 }
 
-types.atom_meta = {
+types.symbol_meta = {
     __tostring = function(self)
         return self.v
     end,
 
     __index = setmetatable({
         type = function(self)
-            return "atom"
+            return "symbol"
+        end,
+
+        eval = function(self, env)
+            return self
+        end
+
+    }, types.base_meta)
+}
+
+
+types.ident = {
+    new = function(ident)
+        return setmetatable({
+            v = ident
+        }, types.ident_meta)
+    end
+}
+
+types.ident_meta = {
+    __tostring = function(self)
+        return self.v
+    end,
+
+    __index = setmetatable({
+        type = function(self)
+            -- Shouldn't see this from within Scheme.
+            return "identifier"
         end,
 
         eval = function(self, env)
             local val = self
 
-            while val:type() == "atom" do
+            while val:type() == "identifier" do
                 nval = env:resolve(val:getval())
 
                 if not nval then
@@ -278,31 +305,33 @@ types.list_meta = {
 
             -- Look for something callable, or something that can be
             -- resolved to something callable.
-            while head:type() ~= "atom" and head:type() ~= "function" do
+            while head:type() ~= "identifier" and head:type() ~= "function" do
                 head:setevalpos(df, dl, dc)
 
                 -- Can it be evaluated directly or looked up further?
                 if          head:type() ~= "list"
                         and head:type() ~= "function"
-                        and head:type() ~= "atom" then
-                    util.err(head, "cannot invoke on value of type %s",
-                        head:type())
+                        and head:type() ~= "identifier" then
+                    util.err(head, "cannot invoke on value of type %s: %s",
+                        head:type(),
+                        head)
 
                 elseif head:type() == "list" and #head:getval() == 0 then
                     util.err(head, "cannot invoke on empty list")
 
                 elseif head:type() == "list" and
-                       head:getval()[1]:type() == "atom" and
+                       head:getval()[1]:type() == "identifier" and
                        head:getval()[1]:getval() == "quote" then
+                    util.err(head, "cannot invoke on quoted list: %s",
+                        head:getval()[2])
 
-                    util.err(head, "cannot invoke on value of type quote")
                 end
 
                 head = head:eval(env)
             end
 
             -- Atom, resolve to function or special form.
-            if head:type() == "atom" then
+            if head:type() == "identifier" then
                 -- Is it a special form?
                 if special_forms[head:getval()] then
                     return special_forms[head:getval()](head, env, tail)

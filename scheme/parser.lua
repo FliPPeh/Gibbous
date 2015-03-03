@@ -38,13 +38,13 @@ function parser_meta:advance(n)
     self.pos = self.pos + n
 end
 
-local function is_valid_atom(c)
+local function is_valid_ident(c)
     return not c:find("[%s%(%)%#%[%]%'%;]")
 end
 
-local function is_valid_atom_start(c)
+local function is_valid_ident_start(c)
     -- return not c:find("[%s%(%)%#%[%]%'%.]")
-    return is_valid_atom(c)
+    return is_valid_ident(c)
 end
 
 
@@ -108,10 +108,10 @@ function parser_meta:parse_list()
     return list
 end
 
-function parser_meta:parse_atom()
+function parser_meta:parse_ident()
     local buf = ""
 
-    while not self:is_eof() and is_valid_atom(self:getc()) do
+    while not self:is_eof() and is_valid_ident(self:getc()) do
         buf = buf .. self:getc()
 
         self:expect(self:getc())
@@ -190,23 +190,23 @@ function parser_meta:parse_value()
         local dc = self.col
 
         self:expect(".")
-        return self:emit(types.mkatom, ".", dl, dl)
+        return self:emit(types.mkident, ".", dl, dl)
     --]]
-    elseif is_valid_atom_start(c) then
-        local atom = ""
+    elseif is_valid_ident_start(c) then
+        local ident = ""
         local dl = self.line
         local dc = self.col
 
-        while not self:is_eof() and is_valid_atom(self:getc()) do
-            atom = atom .. self:getc()
+        while not self:is_eof() and is_valid_ident(self:getc()) do
+            ident = ident .. self:getc()
 
             self:expect(self:getc())
         end
 
-        if is_number(atom) then
-            return self:emit(types.number.new, tonumber(atom), dl, dc)
+        if is_number(ident) then
+            return self:emit(types.number.new, tonumber(ident), dl, dc)
         else
-            return self:emit(types.atom.new, atom, dl, dc)
+            return self:emit(types.ident.new, ident, dl, dc)
         end
 
     elseif c == "'" then
@@ -216,7 +216,7 @@ function parser_meta:parse_value()
         self:expect(c)
 
         return self:emit(types.list.new,
-            {types.atom.new("quote"), self:parse_value()}, dl, dc)
+            {types.ident.new("quote"), self:parse_value()}, dl, dc)
 
     elseif c == "#" then
         local dl = self.line

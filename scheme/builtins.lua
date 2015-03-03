@@ -137,7 +137,7 @@ local function is_type(typ)
     end
 end
 
-for i, t in ipairs{"atom",
+for i, t in ipairs{"symbol",
                    "list",
                    "number",
                    "string",
@@ -184,7 +184,8 @@ builtins["="] = function(self, args)
 
     local a, b = args[1], args[2]
 
-    util.expect(a, {"number",
+    util.expect(a, {"symbol",
+                    "number",
                     "string",
                     "bool",
                     "list",
@@ -193,7 +194,8 @@ builtins["="] = function(self, args)
     -- No type coercion
     util.expect(b, a:type(), "operand type mismatch")
 
-    if a:type() == "number" or
+    if a:type() == "symbol" or
+       a:type() == "number" or
        a:type() == "string" or
        a:type() == "char" or
        a:type() == "bool" then

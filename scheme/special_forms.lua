@@ -50,7 +50,7 @@ local function wrap_bodies(bodies)
     local types = require "scheme.types"
 
     if #bodies > 1 then
-        return types.list.new{types.atom.new("begin"), table.unpack(bodies)}
+        return types.list.new{types.ident.new("begin"), table.unpack(bodies)}
     else
         return bodies[1]
     end
@@ -65,7 +65,7 @@ special_forms["cond"] = function(self, env, args)
         util.ensure(clause, #clause:getval() >= 2,
             "cond-clause must be a list of at least size 2")
 
-        if clause:getval()[1]:type() == "atom" and
+        if clause:getval()[1]:type() == "identifier" and
            clause:getval()[1]:getval() == "else" then
 
            util.ensure(clause, i == #args,
@@ -86,10 +86,31 @@ special_forms["cond"] = function(self, env, args)
     return types.list.new{}
 end
 
+local function quote(self, val)
+    local types = require "scheme.types"
+
+    if val:type() == "identifier" then
+        local v = types.symbol.new(val:getval())
+        v:setpos(val:getpos())
+
+        return v
+    elseif val:type() == "list" then
+        for i, eval in ipairs(val:getval()) do
+            val:getval()[i] = quote(self, eval)
+        end
+
+        return types.list.new{
+            table.unpack(val:getval())
+        }
+    else
+        return val
+    end
+end
+
 special_forms["quote"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
 
-    return args[1]
+    return quote(self, args[1])
 end
 
 local function parse_paramslist(paramslist)
@@ -99,7 +120,7 @@ local function parse_paramslist(paramslist)
     local defined_params = {}
 
     for i, param in ipairs(paramslist) do
-        util.expect(param, "atom", "function parameter")
+        util.expect(param, "identifier", "function parameter")
 
         local paramname = param:getval()
 
@@ -110,7 +131,7 @@ local function parse_paramslist(paramslist)
                 util.err(paramslist[i + 1], "variadic parameter must be last")
             end
 
-            util.expect(paramslist[i + 1], "atom", "variadic parameter")
+            util.expect(paramslist[i + 1], "identifier", "variadic parameter")
 
             local varpar = paramslist[i + 1]
 
@@ -150,10 +171,10 @@ special_forms["define"] = function(self, env, args)
 
     local var, val = table.unpack(args)
 
-    util.expect(var, {"atom",  "list"}, "definition")
+    util.expect(var, {"identifier",  "list"}, "definition")
 
     -- Are we defining a variable or a function?
-    if var:type() == "atom" then
+    if var:type() == "identifier" then
         -- variable!
         util.expect_argc_max(self, 2, #args)
 
@@ -165,7 +186,7 @@ special_forms["define"] = function(self, env, args)
 
     else
         -- function!
-        util.expect(var:car(), "atom", "function name")
+        util.expect(var:car(), "identifier", "function name")
 
         local funcname = var:car():getval()
         local paramslist = var:cdr()
@@ -219,7 +240,7 @@ local function parse_bindings(bindings)
         util.ensure(binding, #binding:getval() == 2,
             "binding must be a list of size 2")
 
-        util.expect(binding:getval()[1], "atom")
+        util.expect(binding:getval()[1], "identifier")
 
         local bindvar, bindval = table.unpack(binding:getval())
 
