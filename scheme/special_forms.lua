@@ -120,7 +120,7 @@ local function parse_paramslist(paramslist)
     local defined_params = {}
 
     for i, param in ipairs(paramslist) do
-        util.expect(param, "identifier", "function parameter")
+        util.expect(param, "identifier", "procedure parameter")
 
         local paramname = param:getval()
 
@@ -159,7 +159,7 @@ end
 
 local function create_lambda(defp, env, funcname, funcparams, varparam, body)
     local types = require "scheme.types"
-    local func  = types.func.new(funcname, env, funcparams, varparam, body)
+    local func  = types.proc.new(funcname, env, funcparams, varparam, body)
 
     func:setpos(defp:getpos())
 
@@ -173,26 +173,26 @@ special_forms["define"] = function(self, env, args)
 
     util.expect(var, {"identifier",  "list"}, "definition")
 
-    -- Are we defining a variable or a function?
+    -- Are we defining a variable or a procedure?
     if var:type() == "identifier" then
         -- variable!
         util.expect_argc_max(self, 2, #args)
 
         util.ensure(self, not env:is_defined(var:getval()),
-            "variable or function already defined: %s",
+            "variable or procedure already defined: %s",
                 var:getval())
 
         env:define(var:getval(), val:eval(env))
 
     else
-        -- function!
-        util.expect(var:car(), "identifier", "function name")
+        -- procedure!
+        util.expect(var:car(), "identifier", "procedure name")
 
         local funcname = var:car():getval()
         local paramslist = var:cdr()
 
         util.ensure(self, not env:is_defined(funcname),
-            "variable or function already defined: %s",
+            "variable or procedure already defined: %s",
                 funcname)
 
         local funcparams, varparam = parse_paramslist(paramslist)

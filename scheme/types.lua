@@ -123,7 +123,7 @@ types.ident_meta = {
                 nval = env:resolve(val:getval())
 
                 if not nval then
-                    util.err(self, "unresolved variable or function: %s",
+                    util.err(self, "unresolved procedure or variable: %s",
                         val:getval())
                 end
 
@@ -305,12 +305,12 @@ types.list_meta = {
 
             -- Look for something callable, or something that can be
             -- resolved to something callable.
-            while head:type() ~= "identifier" and head:type() ~= "function" do
+            while head:type() ~= "identifier" and head:type() ~= "procedure" do
                 head:setevalpos(df, dl, dc)
 
                 -- Can it be evaluated directly or looked up further?
                 if          head:type() ~= "list"
-                        and head:type() ~= "function"
+                        and head:type() ~= "procedure"
                         and head:type() ~= "identifier" then
                     util.err(head, "cannot invoke on value of type %s: %s",
                         head:type(),
@@ -338,7 +338,7 @@ types.list_meta = {
 
                 else
                     -- Have something to look up, so look it up.
-                    while head:type() ~= "function" do
+                    while head:type() ~= "procedure" do
                         head = head:eval(env)
                     end
 
@@ -351,7 +351,7 @@ types.list_meta = {
     }, types.base_meta)
 }
 
-types.func = {
+types.proc = {
     new = function(name, parent_env, params, variadic_param, body)
         return setmetatable({
             name   = name,
@@ -361,7 +361,7 @@ types.func = {
 
             varparam = variadic_param,
             builtin  = false
-        }, types.func_meta)
+        }, types.proc_meta)
     end,
 
     new_builtin = function(name, func)
@@ -373,13 +373,13 @@ types.func = {
 
             varparam = nil,
             builtin  = true
-        }, types.func_meta)
+        }, types.proc_meta)
     end
 }
 
-types.func_meta = {
+types.proc_meta = {
     __tostring = function(self)
-        return ("(function \"%s\" (%s) %s)"):format(
+        return ("(procedure \"%s\" (%s) %s)"):format(
             self.name or "lambda",
             table.concat(self.params, " "),
             self.body)
@@ -387,7 +387,7 @@ types.func_meta = {
 
     __index = setmetatable({
         type = function(self)
-            return "function"
+            return "procedure"
         end,
 
         call = function(self, env, args)

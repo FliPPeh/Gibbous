@@ -145,7 +145,7 @@ for i, t in ipairs{"symbol",
                    "string",
                    "boolean",
                    "char",
-                   "function"} do
+                   "procedure"} do
     builtins[t .. "?"] = is_type(t)
 end
 
