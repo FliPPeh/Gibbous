@@ -39,7 +39,7 @@ function parser_meta:advance(n)
 end
 
 local function is_valid_atom(c)
-    return not c:find("[%s%(%)%#%[%]%']")
+    return not c:find("[%s%(%)%#%[%]%'%;]")
 end
 
 local function is_valid_atom_start(c)
@@ -71,6 +71,12 @@ function parser_meta:skip_whitespace()
 
     if i and j then
         self:advance(j)
+    end
+end
+
+function parser_meta:skip_to_next_line()
+    while not self:is_eof() and self:getc() ~= "\n" do
+        self:advance(1)
     end
 end
 
@@ -164,6 +170,13 @@ function parser_meta:parse_value()
         local dc = self.col
 
         return self:emit(types.list.new, self:parse_list(), dl, dc)
+
+    elseif c == ";" then
+        self:skip_to_next_line()
+
+        if not self:is_eof() then
+            return self:parse_value()
+        end
 
     elseif c == "\"" then
         local dl = self.line
@@ -293,7 +306,11 @@ function parser_meta:parse(input)
     self:skip_whitespace()
 
     while not self:is_eof() do
-        table.insert(ast, self:parse_value())
+        local val = self:parse_value()
+
+        if val then
+            table.insert(ast, val)
+        end
 
         self:skip_whitespace()
     end
