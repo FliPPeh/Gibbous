@@ -31,13 +31,13 @@ function builtins.format(self, args)
         end
     end
 
-    return types.mkstring(string.format(args[1]:getval(), table.unpack(fargs)))
+    return types.str.new(string.format(args[1]:getval(), table.unpack(fargs)))
 end
 
 builtins["to-string"] = function(self, args)
     util.expect_argc(self, 1, #args)
 
-    return types.mkstring(tostring(args[1]))
+    return types.str.new(tostring(args[1]))
 end
 
 --[[
@@ -52,7 +52,7 @@ local function numeric_primitive(op)
         util.expect(a, "number", "invalid operand type")
         util.expect(b, a:type(), "operand type mismatch")
 
-        return types.mknumber(op(a:getval(), b:getval()))
+        return types.number.new(op(a:getval(), b:getval()))
     end
 end
 
@@ -61,7 +61,7 @@ local function unary_numeric_primitive(op)
         util.expect_argc(self, 1, #args)
         util.expect(args[1], "number", "invalid operand type")
 
-        return types.mknumber(op(args[1]:getval()))
+        return types.number.new(op(args[1]:getval()))
     end
 end
 
@@ -79,14 +79,14 @@ builtins["neg"] = unary_numeric_primitive(function(a) return -a end)
 -- List stuff
 --]]
 function builtins.list(self, args)
-    return types.mklist{table.unpack(args)}
+    return types.list.new{table.unpack(args)}
 end
 
 function builtins.cons(self, args)
     util.expect_argc(self, 2, #args)
     util.expect(args[2], "list")
 
-    return types.mklist{args[1], table.unpack(args[2]:getval())}
+    return types.list.new{args[1], table.unpack(args[2]:getval())}
 end
 
 function builtins.car(self, args)
@@ -107,35 +107,35 @@ function builtins.cdr(self, args)
         table.insert(tail, args[1]:getval()[i])
     end
 
-    return types.mklist(tail)
+    return types.list.new(tail)
 end
 
 function builtins.length(self, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], {"list", "string"})
 
-    return types.mknumber(#args[1]:getval())
+    return types.number.new(#args[1]:getval())
 end
 
 builtins["pair?"] = function(self, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "list")
 
-    return types.mkbool(#args[1]:getval() == 2)
+    return types.boolean.new(#args[1]:getval() == 2)
 end
 
 builtins["null?"] = function(self, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "list")
 
-    return types.mkbool(#args[1]:getval() == 0)
+    return types.boolean.new(#args[1]:getval() == 0)
 end
 
 builtins["not"] = function(self, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "boolean")
 
-    return types.mkbool(not args[1]:getval())
+    return types.boolean.new(not args[1]:getval())
 end
 
 --[[
@@ -145,7 +145,7 @@ local function is_type(typ)
     return function(self, args)
         util.expect_argc(self, 1, #args)
 
-        return types.mkbool(args[1]:type() == typ)
+        return types.boolean.new(args[1]:type() == typ)
     end
 end
 
@@ -162,7 +162,7 @@ end
 function builtins.type(self, args)
     util.expect_argc(self, 1, #args)
 
-    return types.mkstring(args[1]:type())
+    return types.str.new(args[1]:type())
 end
 
 
@@ -187,21 +187,21 @@ builtins["="] = function(self, args)
        a:type() == "string" or
        a:type() == "character" or
        a:type() == "bool" then
-        return types.mkbool(a:getval() == b:getval())
+        return types.boolean.new(a:getval() == b:getval())
     else
         local av, bv = a:getval(), b:getval()
 
         if #av ~= #bv then
-            return types.mkbool(false)
+            return types.boolean.new(false)
         end
 
         for i = 1, #av do
             if not builtins["="](self, {av[i], bv[i]}):getval() then
-                return types.mkbool(false)
+                return types.boolean.new(false)
             end
         end
 
-        return types.mkbool(true)
+        return types.boolean.new(true)
     end
 end
 
@@ -217,7 +217,7 @@ builtins["<"] = function(self, args)
     util.expect(a, {"number", "string"}, "invalid operand type")
     util.expect(b, a:type(), "operand type mismatch")
 
-    return types.mkbool(a:getval() < b:getval())
+    return types.boolean.new(a:getval() < b:getval())
 end
 
 builtins["<="] = function(self, args)

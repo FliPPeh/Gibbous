@@ -32,7 +32,7 @@ charnames.tab       = charnames.TAB
 
 types.charnames = charnames
 
-types.base = {
+types.base_meta = {
     __index = {
         setpos = function(self, line, col)
             self.def_line = line
@@ -59,6 +59,14 @@ types.base = {
 -- Primitive types
 --]]
 types.atom = {
+    new = function(atom)
+        return setmetatable({
+            v = atom
+        }, types.atom_meta)
+    end
+}
+
+types.atom_meta = {
     __tostring = function(self)
         return self.v
     end,
@@ -85,10 +93,19 @@ types.atom = {
             return val
         end
 
-    }, types.base)
+    }, types.base_meta)
 }
 
+
 types.str = {
+    new = function(str)
+        return setmetatable({
+            v = str
+        }, types.str_meta)
+    end
+}
+
+types.str_meta = {
     __tostring = function(self)
         return string.format("%q", self.v)
     end,
@@ -101,10 +118,19 @@ types.str = {
         eval = function(self, env)
             return self
         end
-    }, types.base)
+    }, types.base_meta)
 }
 
+
 types.number = {
+    new = function(num)
+        return setmetatable({
+            v = num
+        }, types.number_meta)
+    end
+}
+
+types.number_meta = {
     __tostring = function(self)
         return string.format("%s", self.v)
     end,
@@ -117,10 +143,19 @@ types.number = {
         eval = function(self, env)
             return self
         end
-    }, types.base)
+    }, types.base_meta)
 }
 
+
 types.char = {
+    new = function(char)
+        return setmetatable({
+            v = char
+        }, types.char_meta)
+    end
+}
+
+types.char_meta = {
     __tostring = function(self)
         local w = self.v
 
@@ -147,10 +182,19 @@ types.char = {
         eval = function(self, env)
             return self
         end
-    }, types.base)
+    }, types.base_meta)
 }
 
+
 types.boolean = {
+    new = function(bool)
+        return setmetatable({
+            v = bool
+        }, types.boolean_meta)
+    end
+}
+
+types.boolean_meta = {
     __tostring = function(self)
         if self.v then
             return "#t"
@@ -167,10 +211,19 @@ types.boolean = {
         eval = function(self, env)
             return self
         end
-    }, types.base)
+    }, types.base_meta)
 }
 
+
 types.list = {
+    new = function(list)
+        return setmetatable({
+            v = list
+        }, types.list_meta)
+    end
+}
+
+types.list_meta = {
     __tostring = function(self)
         local ss = {}
 
@@ -257,10 +310,36 @@ types.list = {
 
             return head:call(env, tail)
         end
-    }, types.base)
+    }, types.base_meta)
 }
 
 types.func = {
+    new = function(name, parent_env, params, variadic_param, body)
+        return setmetatable({
+            name   = name,
+            env    = parent_env:derive(name),
+            params = params,
+            body   = body,
+
+            varparam = variadic_param,
+            builtin  = false
+        }, types.func_meta)
+    end,
+
+    new_builtin = function(name, func)
+        return setmetatable({
+            name   = name,
+            env    = nil,
+            params = nil,
+            body   = func,
+
+            varparam = nil,
+            builtin  = true
+        }, types.func_meta)
+    end
+}
+
+types.func_meta = {
     __tostring = function(self)
         return ("(function \"%s\" (%s) %s)"):format(
             self.name or "lambda",
@@ -301,7 +380,7 @@ types.func = {
                     self.env:define(self.params[i], argv)
                 end
             else
-                local vargs = types.mklist{}
+                local vargs = types.list.new{}
 
                 for i, arg in ipairs(args) do
                     local argv = arg:eval(env)
@@ -319,74 +398,21 @@ types.func = {
 
             return self.body:eval(self.env)
         end
-    }, types.base)
+    }, types.base_meta)
 }
 
---[[
--- Other types types
---]]
---
-types.userdata = {
-    __tostring = function(self)
-        return ("<%s>"):format(self.v)
-    end,
-
-    __index = setmetatable({
-        type = function(self)
-            return "userdata"
-        end,
-
-        eval = function(self, env)
-            return self
-        end
-    }, types.base)
-}
-
-function types.mklist(ls)    return setmetatable({v = ls},  types.list)    end
-function types.mkstring(s)   return setmetatable({v = s},   types.str)     end
-function types.mknumber(num) return setmetatable({v = num}, types.number)  end
-function types.mkatom(at)    return setmetatable({v = at},  types.atom)    end
-function types.mksymbol(s)   return setmetatable({v = s},   types.symbol)  end
-function types.mkbool(b)     return setmetatable({v = b},   types.boolean) end
-function types.mkchar(c)     return setmetatable({v = c},   types.char)    end
-
-function types.mkfunction(env, params, body)
-    return setmetatable({
-        env = env,
-        params = params,
-        body = body,
-        name = nil,
-        varparam = nil,
-        builtin = false
-    }, types.func)
-end
-
-function types.mkbuiltin(name, fn)
-    return setmetatable({
-        env = nil,
-        params = nil,
-        body = fn,
-        name = name,
-        varparam = nil,
-        builtin = true
-    }, types.func)
-end
-
-function types.mkluaval(ud)
-    return setmetatable({v = ud}, types.luaval)
-end
 
 function types.toscheme(val, meta)
     if type(val) == "table" then
-        return types.mklist(val)
+        return types.list.new(val)
     elseif type(val) == "string" then
-        return types.mkstring(val)
+        return types.str.new(val)
     elseif type(val) == "number" then
-        return types.mknumber(val)
+        return types.number.new(val)
     elseif type(val) == "boolean" then
-        return types.mkbool(val)
+        return types.boolean.new(val)
     elseif type(val) == "nil" then
-        return types.mklist{}
+        return types.list.new{}
     else
         error(("cannot convert value of type %s to scheme value: %s"):format(
             type(val), val), 2)

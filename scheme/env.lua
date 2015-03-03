@@ -44,7 +44,7 @@ function env.new_environment(lua_env)
     }, env_meta)
 
     for name, fn in pairs(builtins) do
-        self:define(name, types.mkbuiltin(name, fn))
+        self:define(name, types.func.new_builtin(name, fn))
     end
 
     return self
@@ -103,7 +103,7 @@ env_meta = {
                             return types.toscheme(lv(table.unpack(args)))
                         end
 
-                        return types.mkbuiltin(var, helper)
+                        return types.func.new_builtin(var, helper)
                     else
                         return types.toscheme(lv)
                     end

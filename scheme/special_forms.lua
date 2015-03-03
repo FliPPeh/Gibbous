@@ -103,10 +103,8 @@ end
 
 local function create_lambda(defp, env, funcname, funcparams, varparam, body)
     local types = require "scheme.types"
-    local func  = types.mkfunction(env:derive(funcname), funcparams, body)
+    local func  = types.func.new(funcname, env, funcparams, varparam, body)
 
-    func.name     = funcname
-    func.varparam = varparam
     func:setpos(defp:getpos())
 
     return func

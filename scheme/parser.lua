@@ -163,13 +163,13 @@ function parser_meta:parse_value()
         local dl = self.line
         local dc = self.col
 
-        return self:emit(types.mklist, self:parse_list(), dl, dc)
+        return self:emit(types.list.new, self:parse_list(), dl, dc)
 
     elseif c == "\"" then
         local dl = self.line
         local dc = self.col
 
-        return self:emit(types.mkstring, self:parse_string(), dl, dc)
+        return self:emit(types.str.new, self:parse_string(), dl, dc)
 
     --[[
     elseif c == "." then
@@ -191,9 +191,9 @@ function parser_meta:parse_value()
         end
 
         if is_number(atom) then
-            return self:emit(types.mknumber, tonumber(atom), dl, dc)
+            return self:emit(types.number.new, tonumber(atom), dl, dc)
         else
-            return self:emit(types.mkatom, atom, dl, dc)
+            return self:emit(types.atom.new, atom, dl, dc)
         end
 
     elseif c == "'" then
@@ -202,8 +202,8 @@ function parser_meta:parse_value()
 
         self:expect(c)
 
-        return self:emit(types.mklist,
-            {types.mkatom("quote"), self:parse_value()}, dl, dc)
+        return self:emit(types.list.new,
+            {types.atom.new("quote"), self:parse_value()}, dl, dc)
 
     elseif c == "#" then
         local dl = self.line
@@ -216,26 +216,11 @@ function parser_meta:parse_value()
         if c == "t" or c == "T" then
             self:expect(c)
 
-            return self:emit(types.mkbool, true, dl, dc)
+            return self:emit(types.boolean.new, true, dl, dc)
         elseif c == "f" or c == "F" then
             self:expect(c)
 
-            return self:emit(types.mkbool, false, dl, dc)
-        --[[
-        elseif c == "'" then
-            self:expect(c)
-
-            local buf = ""
-
-            while not self:is_eof() and is_valid_atom(self:getc()) do
-                buf = buf .. self:getc()
-
-                self:expect(self:getc())
-            end
-
-            return self:emit(types.mksymbol, buf, dl, dc)
-        --]]
-
+            return self:emit(types.boolean.new, false, dl, dc)
         elseif c == "\\" then
             self:expect(c)
 
@@ -244,7 +229,7 @@ function parser_meta:parse_value()
                 -- Not alphanumeric, done here
                 self:expect(char)
 
-                return self:emit(types.mkchar, char, dl, dc)
+                return self:emit(types.char.new, char, dl, dc)
             else
                 self:expect(char)
 
@@ -258,10 +243,10 @@ function parser_meta:parse_value()
                         self:expect(la:sub(1, 1))
                         self:expect(la:sub(2, 2))
 
-                        return self:emit(types.mkchar,
+                        return self:emit(types.char.new,
                             string.char(tonumber(la, 16)), dl, dc)
                     else
-                        return self:emit(types.mkchar, char, dl, dc)
+                        return self:emit(types.char.new, char, dl, dc)
                     end
                 else
                     local buf = char
@@ -277,11 +262,11 @@ function parser_meta:parse_value()
                             self.col = self.col - #buf
                             self:err("unknown character name: %s", buf)
                         else
-                            return self:emit(types.mkchar,
+                            return self:emit(types.char.new,
                                 types.charnames[buf], dl, dc)
                         end
                     else
-                        return self:emit(types.mkchar, buf, dl, dc)
+                        return self:emit(types.char.new, buf, dl, dc)
                     end
                 end
             end
