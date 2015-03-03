@@ -101,13 +101,7 @@ function builtins.cdr(self, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "list")
 
-    local tail = {}
-
-    for i = 2, #args[1]:getval() do
-        table.insert(tail, args[1]:getval()[i])
-    end
-
-    return types.list.new(tail)
+    return types.list.new{table.unpack(args[1]:getval(), 2)}
 end
 
 function builtins.length(self, args)

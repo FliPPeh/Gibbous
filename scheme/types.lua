@@ -254,13 +254,7 @@ types.list_meta = {
         end,
 
         cdr = function(self)
-            local cdr = {}
-
-            for i = 2, #self.v do
-                table.insert(cdr, self:getval()[i])
-            end
-
-            return cdr
+            return {table.unpack(self:getval(), 2)}
         end,
 
         eval = function(self, env)
