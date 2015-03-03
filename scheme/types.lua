@@ -39,8 +39,18 @@ types.base_meta = {
             self.def_col  = col
         end,
 
-        getpos = function(self)
+        setevalpos = function(self, line, col)
+            self.eval_line = line
+            self.eval_col  = col
+        end,
+
+        getdefpos = function(self, line, col)
             return self.def_line, self.def_col
+        end,
+
+        getpos = function(self)
+            return self.eval_line or self.def_line,
+                   self.eval_col  or self.def_col
         end,
 
         getval = function(self)
@@ -304,7 +314,7 @@ types.list_meta = {
                         head = head:eval(env)
                     end
 
-                    head:setpos(dl, dc)
+                    head:setevalpos(dl, dc)
                 end
             end
 
@@ -359,7 +369,7 @@ types.func_meta = {
 
                 for i, arg in ipairs(args) do
                     local argv = arg:eval(env)
-                    argv:setpos(arg:getpos())
+                    argv:setevalpos(arg:getpos())
 
                     table.insert(evargs, argv)
                 end
@@ -375,7 +385,7 @@ types.func_meta = {
 
                 for i, arg in ipairs(args) do
                     local argv = arg:eval(env)
-                    argv:setpos(arg:getpos())
+                    argv:setevalpos(arg:getpos())
 
                     self.env:define(self.params[i], argv)
                 end
@@ -384,7 +394,7 @@ types.func_meta = {
 
                 for i, arg in ipairs(args) do
                     local argv = arg:eval(env)
-                    argv:setpos(arg:getpos())
+                    argv:setevalpos(arg:getpos())
 
                     if i > #self.params then
                         table.insert(vargs:getval(), argv)
