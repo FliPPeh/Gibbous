@@ -39,8 +39,7 @@ special_forms["if"] = function(self, env, args)
 
     local cond = args[1]:eval(env)
 
-    util.expect(cond, "boolean")
-    if cond:getval() then
+    if cond:type() ~= "boolean" or cond:getval() then
         return args[2]:eval(env)
     else
         return args[3]:eval(env)
@@ -72,16 +71,14 @@ special_forms["cond"] = function(self, env, args)
            util.ensure(clause, i == #args,
                "else-clause must be the last clause in a cond")
 
-           args[i] = types.boolean.new(true)
+           clause:getval()[1] = types.boolean.new(true)
        end
     end
 
     for i, clause in ipairs(args) do
         local cond = clause:getval()[1]:eval(env)
 
-        util.expect(cond, "boolean")
-
-        if cond:getval() then
+        if cond:type() ~= "boolean" or cond:getval() then
             return wrap_bodies{table.unpack(clause:getval(), 2)}:eval(env)
         end
     end
