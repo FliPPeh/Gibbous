@@ -142,7 +142,7 @@ for i, t in ipairs{"atom",
                    "number",
                    "string",
                    "boolean",
-                   "character",
+                   "char",
                    "function"} do
     builtins[t .. "?"] = is_type(t)
 end
@@ -188,14 +188,14 @@ builtins["="] = function(self, args)
                     "string",
                     "bool",
                     "list",
-                    "character"}, "invalid operand type")
+                    "char"}, "invalid operand type")
 
     -- No type coercion
     util.expect(b, a:type(), "operand type mismatch")
 
     if a:type() == "number" or
        a:type() == "string" or
-       a:type() == "character" or
+       a:type() == "char" or
        a:type() == "bool" then
         return types.boolean.new(a:getval() == b:getval())
     else

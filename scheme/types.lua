@@ -189,7 +189,7 @@ types.char_meta = {
 
     __index = setmetatable({
         type = function(self)
-            return "character"
+            return "char"
         end,
 
         eval = function(self, env)
