@@ -131,12 +131,6 @@ builtins["null?"] = function(self, args)
     return types.boolean.new(#args[1]:getval() == 0)
 end
 
-builtins["not"] = function(self, args)
-    util.expect_argc(self, 1, #args)
-    util.expect(args[1], "boolean")
-
-    return types.boolean.new(not args[1]:getval())
-end
 
 --[[
 -- Type stuff
@@ -169,6 +163,28 @@ end
 --[[
 -- Comparison stuff
 --]]
+builtins["not"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "boolean")
+
+    return types.boolean.new(not args[1]:getval())
+end
+
+local function boolean_operator(op)
+    return function(self, args)
+        util.expect_argc(self, 2, #args)
+
+        util.expect(args[1], "boolean", "invalid operand type")
+        util.expect(args[2], args[1]:type(), "operand type mistmatch")
+
+        return types.boolean.new(op(args[1]:getval(), args[2]:getval()))
+    end
+end
+
+builtins["and"] = boolean_operator(function(a, b) return a and b end)
+builtins["or"]  = boolean_operator(function(a, b) return a  or b end)
+builtins["xor"] = boolean_operator(function(a, b) return a ~=  b end)
+
 builtins["="] = function(self, args)
     util.expect_argc(self, 2, #args)
 
