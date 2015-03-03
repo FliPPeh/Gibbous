@@ -2,6 +2,7 @@ local special_forms = {}
 
 local util = require "scheme.util"
 
+--[[
 special_forms["."] = function(self, env, args)
     local types = require "scheme.types"
 
@@ -31,6 +32,7 @@ special_forms["."] = function(self, env, args)
         util.err(args[1], "undefined lua value: %s", args[1])
     end
 end
+--]]
 
 special_forms["if"] = function(self, env, args)
     util.expect_argc(self, 3, #args)

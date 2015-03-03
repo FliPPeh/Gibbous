@@ -88,7 +88,29 @@ env_meta = {
 
         resolve = function(self, var)
             -- print(("%s: looking up %s"):format(self.name, var))
-            return self.env[var]
+            if self:is_defined(var) then
+                return self.env[var]
+            else
+                local lv = self:locate_lua(var)
+
+                if lv then
+                    if type(lv) == "function" then
+                        local function helper(self, args)
+                            for i = 1, #args do
+                                args[i] = types.tolua(args[i])
+                            end
+
+                            return types.toscheme(lv(table.unpack(args)))
+                        end
+
+                        return types.mkbuiltin(var, helper)
+                    else
+                        return types.toscheme(lv)
+                    end
+                end
+
+                return nil
+            end
         end,
 
         locate_lua = function(self, name)
