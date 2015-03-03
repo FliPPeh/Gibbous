@@ -1,12 +1,12 @@
 local util = {}
 
 function util.err(subj, fmt, ...)
-    local line, col = subj:getpos()
+    local file, line, col = subj:getpos()
 
-    if line and col then
-        error(("<in>:%d:%d: "):format(line, col) .. fmt:format(...), 0)
+    if file and line and col then
+        error(("%s:%d:%d: "):format(file, line, col) .. fmt:format(...), 0)
     else
-        error("<in>:?:?: " .. fmt:format(...), 0)
+        error("?:?:?: " .. fmt:format(...), 0)
     end
 end
 

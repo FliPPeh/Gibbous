@@ -86,7 +86,7 @@ end
 
 function parser_meta:emit(ctor, val, defline, defcol)
     local v = ctor(val)
-    v:setpos(defline, defcol)
+    v:setpos(self.file, defline, defcol)
 
     return v
 end

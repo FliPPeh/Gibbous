@@ -67,6 +67,13 @@ env_meta = {
             return self:eval_ast(ast)
         end,
 
+        eval_file = function(self, file)
+            -- Use a dedicated parser each file
+            local parser = parser.new(file)
+
+            return self:eval_ast(parser:parse(io.open(file, "r"):read("*a")))
+        end,
+
         eval_ast = function(self, ast)
             local last
 

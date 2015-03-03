@@ -34,22 +34,25 @@ types.charnames = charnames
 
 types.base_meta = {
     __index = {
-        setpos = function(self, line, col)
+        setpos = function(self, file, line, col)
+            self.def_file = file
             self.def_line = line
             self.def_col  = col
         end,
 
-        setevalpos = function(self, line, col)
+        setevalpos = function(self, file, line, col)
+            self.eval_file = file
             self.eval_line = line
             self.eval_col  = col
         end,
 
-        getdefpos = function(self, line, col)
-            return self.def_line, self.def_col
+        getdefpos = function(self)
+            return self.def_file, self.def_line, self.def_col
         end,
 
         getpos = function(self)
-            return self.eval_line or self.def_line,
+            return self.eval_file or self.def_file,
+                   self.eval_line or self.def_line,
                    self.eval_col  or self.def_col
         end,
 
@@ -271,11 +274,13 @@ types.list_meta = {
             -- Save source position so error messages point to this atom,
             -- rather than the place where the value it's holding was
             -- defined.
-            local dl, dc = head:getpos()
+            local df, dl, dc = head:getpos()
 
             -- Look for something callable, or something that can be
             -- resolved to something callable.
             while head:type() ~= "atom" and head:type() ~= "function" do
+                head:setevalpos(df, dl, dc)
+
                 -- Can it be evaluated directly or looked up further?
                 if          head:type() ~= "list"
                         and head:type() ~= "function"
@@ -308,7 +313,7 @@ types.list_meta = {
                         head = head:eval(env)
                     end
 
-                    head:setevalpos(dl, dc)
+                    head:setevalpos(df, dl, dc)
                 end
             end
 
