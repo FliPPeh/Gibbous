@@ -47,6 +47,48 @@ special_forms["if"] = function(self, env, args)
     end
 end
 
+local function wrap_bodies(bodies)
+    local types = require "scheme.types"
+
+    if #bodies > 1 then
+        return types.list.new{types.atom.new("begin"), table.unpack(bodies)}
+    else
+        return bodies[1]
+    end
+end
+
+special_forms["cond"] = function(self, env, args)
+    local types = require "scheme.types"
+
+    -- Sanity check before evaluating.
+    for i, clause in ipairs(args) do
+        util.expect(clause, "list")
+        util.ensure(clause, #clause:getval() >= 2,
+            "cond-clause must be a list of at least size 2")
+
+        if clause:getval()[1]:type() == "atom" and
+           clause:getval()[1]:getval() == "else" then
+
+           util.ensure(clause, i == #args,
+               "else-clause must be the last clause in a cond")
+
+           args[i] = types.boolean.new(true)
+       end
+    end
+
+    for i, clause in ipairs(args) do
+        local cond = clause:getval()[1]:eval(env)
+
+        util.expect(cond, "boolean")
+
+        if cond:getval() then
+            return wrap_bodies{table.unpack(clause:getval(), 2)}:eval(env)
+        end
+    end
+
+    return types.list.new{}
+end
+
 special_forms["quote"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
 
@@ -108,16 +150,6 @@ local function create_lambda(defp, env, funcname, funcparams, varparam, body)
     func:setpos(defp:getpos())
 
     return func
-end
-
-local function wrap_bodies(bodies)
-    local types = require "scheme.types"
-
-    if #bodies > 1 then
-        return types.list.new{types.atom.new("begin"), table.unpack(bodies)}
-    else
-        return bodies[1]
-    end
 end
 
 special_forms["define"] = function(self, env, args)

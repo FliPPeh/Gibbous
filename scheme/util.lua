@@ -63,4 +63,10 @@ function util.not_implemented(var)
     util.err(var, "not implemented")
 end
 
+function util.ensure(var, cond, fmt, ...)
+    if not cond then
+        util.err(var, fmt:format(...))
+    end
+end
+
 return util
