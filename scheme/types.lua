@@ -202,8 +202,13 @@ types.list = {
 
         eval = function(self, env)
             -- Evaluating a list is always a function call.
-
             local head = self:car()
+
+            -- Empty list evaluates to itself
+            if not head then
+                return self
+            end
+
             local tail = self:cdr()
 
             -- Save source position so error messages point to this atom,
@@ -214,6 +219,23 @@ types.list = {
             -- Look for something callable, or something that can be
             -- resolved to something callable.
             while head:type() ~= "atom" and head:type() ~= "function" do
+                -- Can it be evaluated directly or looked up further?
+                if          head:type() ~= "list"
+                        and head:type() ~= "function"
+                        and head:type() ~= "atom" then
+                    util.err(head, "cannot invoke on value of type %s",
+                        head:type())
+
+                elseif head:type() == "list" and #head:getval() == 0 then
+                    util.err(head, "cannot invoke on empty list")
+
+                elseif head:type() == "list" and
+                       head:getval()[1]:type() == "atom" and
+                       head:getval()[1]:getval() == "quote" then
+
+                    util.err(head, "cannot invoke on value of type quote")
+                end
+
                 head = head:eval(env)
             end
 
