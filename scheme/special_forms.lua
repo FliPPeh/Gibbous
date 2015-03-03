@@ -110,8 +110,18 @@ local function create_lambda(defp, env, funcname, funcparams, varparam, body)
     return func
 end
 
+local function wrap_bodies(bodies)
+    local types = require "scheme.types"
+
+    if #bodies > 1 then
+        return types.list.new{types.atom.new("begin"), table.unpack(bodies)}
+    else
+        return bodies[1]
+    end
+end
+
 special_forms["define"] = function(self, env, args)
-    util.expect_argc(self, 2, #args)
+    util.expect_argc_min(self, 2, #args)
 
     local var, val = table.unpack(args)
 
@@ -119,6 +129,8 @@ special_forms["define"] = function(self, env, args)
 
     -- Are we defining a variable or a function?
     if var:type() == "atom" then
+        util.expect_argc_max(self, 2, #args)
+
         -- variable!
         if env:is_defined(var:getval()) then
             util.err(self, "variable or function already defined: %s",
@@ -141,20 +153,23 @@ special_forms["define"] = function(self, env, args)
 
         local funcparams, varparam = parse_paramslist(paramslist)
 
+        val = wrap_bodies{table.unpack(args, 2)}
+
         env:define(funcname,
             create_lambda(self, env, funcname, funcparams, varparam, val))
     end
 end
 
 special_forms["lambda"] = function(self, env, args)
-    util.expect_argc(self, 2, #args)
+    util.expect_argc_min(self, 2, #args)
 
-    local paramslist, body = table.unpack(args)
+    local paramslist = args[1]
 
     util.expect(paramslist, "list")
 
     local funcparams, varparam = parse_paramslist(paramslist:getval())
-    return create_lambda(self, env, "lambda", funcparams, varparam, body)
+    return create_lambda(self, env, "lambda", funcparams, varparam,
+        wrap_bodies{table.unpack(args, 2)})
 end
 
 special_forms["begin"] = function(self, env, args)
@@ -205,18 +220,18 @@ special_forms["let"] = function(self, env, args)
     --  (let ((a a-val) (b b-val)) body)
     --      -> ((lambda (a b) body) a-val b-val)
     --
-    util.expect_argc(self, 2, #args)
+    util.expect_argc_min(self, 2, #args)
 
-    local bindings, body = table.unpack(args)
-    local params, args = parse_bindings(bindings)
+    local bindings = args[1]
+    local params, largs = parse_bindings(bindings)
 
     local letenv = env:derive("let")
 
     for i = 1, #params do
-        letenv:define(params[i], args[i]:eval(env))
+        letenv:define(params[i], largs[i]:eval(env))
     end
 
-    return body:eval(letenv)
+    return wrap_bodies{table.unpack(args, 2)}:eval(letenv)
 end
 
 special_forms["let*"] = function(self, env, args)
@@ -227,23 +242,23 @@ special_forms["let*"] = function(self, env, args)
     --             b-val))
     --          a-val)
     --
-    util.expect_argc(self, 2, #args)
+    util.expect_argc_min(self, 2, #args)
 
-    local bindings, body = table.unpack(args)
+    local bindings = args[1]
 
     util.expect(bindings, "list")
 
-    local params, args = parse_bindings(bindings)
+    local params, largs = parse_bindings(bindings)
     local letenv = env
 
     for i = 1, #params do
-        local val = args[i]:eval(letenv)
+        local val = largs[i]:eval(letenv)
 
         letenv = letenv:derive("let*-" .. params[i])
         letenv:define(params[i], val)
     end
 
-    return body:eval(letenv)
+    return wrap_bodies{table.unpack(args, 2)}:eval(letenv)
 end
 
 special_forms["letrec"] = function(self, env, args)
