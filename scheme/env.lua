@@ -1,19 +1,8 @@
 local env = {}
 
 local parser = require "scheme.parser"
+local types = require "scheme.types"
 
-
-local env_meta
-
-function env.new_environment(lua_env)
-    return setmetatable({
-        env = {},
-        name = "root",
-        lua_env = lua_env or _G,
-        parser = parser.new(),
-        root = true
-    }, env_meta)
-end
 
 local function string_split(str, sep)
     local parts = {}
@@ -40,6 +29,25 @@ local function string_split(str, sep)
     end
 
     return parts
+end
+
+local env_meta
+
+function env.new_environment(lua_env)
+    local builtins = require "scheme.builtins"
+    local self = setmetatable({
+        env = {},
+        name = "root",
+        lua_env = lua_env or _G,
+        parser = parser.new(),
+        root = true
+    }, env_meta)
+
+    for name, fn in pairs(builtins) do
+        self:define(name, types.mkbuiltin(name, fn))
+    end
+
+    return self
 end
 
 env_meta = {

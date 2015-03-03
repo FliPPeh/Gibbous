@@ -274,6 +274,20 @@ types.func = {
         end,
 
         call = function(self, env, args)
+            if type(self.body) == "function" then
+                -- builtin, just pass it the raw arguments
+                local evargs = {}
+
+                for i, arg in ipairs(args) do
+                    local argv = arg:eval(env)
+                    argv:setpos(arg:getpos())
+
+                    table.insert(evargs, argv)
+                end
+
+                return self.body(self, evargs)
+            end
+
             util.expect_argc_min(self, #self.params, #args)
 
             if not self.varparam then
@@ -342,7 +356,19 @@ function types.mkfunction(env, params, body)
         params = params,
         body = body,
         name = nil,
-        varparam = nil
+        varparam = nil,
+        builtin = false
+    }, types.func)
+end
+
+function types.mkbuiltin(name, fn)
+    return setmetatable({
+        env = nil,
+        params = nil,
+        body = fn,
+        name = name,
+        varparam = nil,
+        builtin = true
     }, types.func)
 end
 
