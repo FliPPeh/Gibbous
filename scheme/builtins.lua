@@ -17,6 +17,8 @@ function builtins.print(self, args)
     end
 
     print(table.unpack(args))
+
+    return types.list.new{}
 end
 
 function builtins.format(self, args)
