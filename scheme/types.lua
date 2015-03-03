@@ -440,7 +440,7 @@ types.func_meta = {
 }
 
 
-function types.toscheme(val, meta)
+function types.toscheme(val)
     if type(val) == "table" then
         return types.list.new(val)
     elseif type(val) == "string" then
