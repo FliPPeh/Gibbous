@@ -193,6 +193,79 @@ function builtins.type(self, args)
     return types.str.new(args[1]:type())
 end
 
+builtins["symbol->string"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "symbol")
+
+    return types.str.new(args[1]:getval())
+end
+
+builtins["string->symbol"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "string")
+
+    return types.symbol.new(args[1]:getval())
+end
+
+
+builtins["list->string"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "list")
+
+    local buf = ""
+
+    for i, c in ipairs(args[1]:getval()) do
+        util.expect(c, "char")
+
+        buf = buf .. c:getval()
+    end
+
+    return types.str.new(buf)
+end
+
+builtins["string->list"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "string")
+
+    local ls = {}
+
+    for i = 1, #args[1]:getval() do
+        table.insert(ls, types.char.new(args[1]:getval():sub(i, i)))
+    end
+
+    return types.list.new(ls)
+end
+
+
+builtins["number->string"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "number")
+
+    return types.str.new(tonumber(args[1]:getval()))
+end
+
+builtins["string->number"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "string")
+
+    return types.number.new(tostring(args[1]:getval()))
+end
+
+
+builtins["char->integer"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "char")
+
+    return types.number.new(args[1]:getval():byte(1))
+end
+
+builtins["integer->char"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "number")
+
+    return types.char.new(string.char(args[1]:getval()))
+end
+
 
 --[[
 -- Comparison stuff
