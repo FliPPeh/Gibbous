@@ -1,6 +1,7 @@
 local env = require "scheme.env"
 
 env = env.new_environment()
+env:eval_file("core.scm")
 
 -- Quick and dirty way to find out if the chunk has balanced parentheses
 local function is_balanced(str)
