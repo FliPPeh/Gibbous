@@ -232,9 +232,21 @@ types.char_meta = {
 
 types.boolean = {
     new = function(bool)
-        return setmetatable({
-            v = bool
-        }, types.boolean_meta)
+        if bool then
+            if not types.boolean.true_val then
+                types.boolean.true_val =
+                    setmetatable({v = true},  types.boolean_meta)
+            end
+
+            return types.boolean.true_val
+        else
+            if not types.boolean.false_val then
+                types.boolean.false_val =
+                    setmetatable({v = false},  types.boolean_meta)
+            end
+
+            return types.boolean.false_val
+        end
     end
 }
 
