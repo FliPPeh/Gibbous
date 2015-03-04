@@ -297,7 +297,7 @@ types.list_meta = {
 
             -- Empty list evaluates to itself
             if not head then
-                return self
+                util.err(self, "bad-invoke-error", "cannot invoke empty list")
             end
 
             local tail = self:cdr()
