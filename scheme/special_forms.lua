@@ -243,7 +243,7 @@ special_forms["lambda"] = function(self, env, args)
         "parameter list must be a list")
 
     local funcparams, varparam = parse_paramslist(paramslist:getval())
-    return create_lambda(self, env, "lambda", funcparams, varparam,
+    return create_lambda(self, env, nil, funcparams, varparam,
         wrap_bodies{table.unpack(args, 2)})
 end
 

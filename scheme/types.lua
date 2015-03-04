@@ -389,10 +389,15 @@ types.proc = {
 
 types.proc_meta = {
     __tostring = function(self)
-        return ("(procedure \"%s\" (%s) %s)"):format(
-            self.name or "lambda",
-            table.concat(self.params, " "),
-            self.body)
+        if self.name then
+            if self.builtin then
+                return ("#<native procedure %q>"):format(self.name)
+            else
+                return ("#<procedure %q>"):format(self.name)
+            end
+        else
+            return ("#<anonymous procedure>")
+        end
     end,
 
     __index = setmetatable({
@@ -462,7 +467,7 @@ types.port = {
 
 types.port_meta = {
     __tostring = function(self)
-        return ("(%s-file %q)"):format(
+        return ("#<%s-file %q>"):format(
             self.mode == "r" and "input" or "output",
             self.path)
     end,
@@ -492,7 +497,7 @@ types.err = {
 
 types.err_meta = {
     __tostring = function(self)
-        return ("(error: %s %q)\n"):format(self.errtype, self.errmsg)
+        return ("#<%s: %s>"):format(self.errtype, self.errmsg)
     end,
 
     __index = setmetatable({
