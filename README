@@ -17,11 +17,16 @@ Implemented:
    - (lua_func ...) evaluates to the return value of lua_func(...) with the
        necessary type conversions.
 
-Not implemented yet:
- * Language primitives:
-   - letrec, and possiblity a few I don't know.
+Partly implemented:
+ * Error handling
+   - error type implemented, still needs a try/handle/... mechanic
 
- * Error handling inside Scheme
+ * File I/O, console I/O
+   - Building blocks are implemented, but needs fleshing out
+
+Not implemented yet but planned:
+ * Language primitives:
+   - letrec, and possiblity a few I don't know yet.
 
  * Macros
 
