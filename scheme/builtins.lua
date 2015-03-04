@@ -204,7 +204,7 @@ builtins["string->symbol"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "string")
 
-    return types.symbol.new(args[1]:getval())
+    return env:intern(args[1]:getval())
 end
 
 
@@ -307,11 +307,12 @@ builtins["="] = function(self, env, args)
     -- No type coercion
     util.expect(b, a:type(), "operand type mismatch")
 
-    if a:type() == "symbol" or
-       a:type() == "number" or
-       a:type() == "string" or
-       a:type() == "char" or
-       a:type() == "bool" then
+    if a:type() == "symbol" then
+        return types.boolean.new(a == b)
+    elseif a:type() == "number" or
+           a:type() == "string" or
+           a:type() == "char" or
+           a:type() == "bool" then
         return types.boolean.new(a:getval() == b:getval())
     else
         local av, bv = a:getval(), b:getval()

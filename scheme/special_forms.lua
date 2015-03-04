@@ -93,17 +93,17 @@ special_forms["cond"] = function(self, env, args)
     return types.list.new{}
 end
 
-local function quote(self, val)
+local function quote(self, env, val)
     local types = require "scheme.types"
 
     if val:type() == "identifier" then
-        local v = types.symbol.new(val:getval())
+        local v = env:intern(val:getval())
         v:setpos(val:getpos())
 
         return v
     elseif val:type() == "list" then
         for i, eval in ipairs(val:getval()) do
-            val:getval()[i] = quote(self, eval)
+            val:getval()[i] = quote(self, env, eval)
         end
 
         return types.list.new{
@@ -117,7 +117,7 @@ end
 special_forms["quote"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
 
-    return quote(self, args[1])
+    return quote(self, env, args[1])
 end
 
 local function parse_paramslist(paramslist)

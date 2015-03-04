@@ -40,7 +40,8 @@ function env.new_environment(lua_env)
         name = "root",
         lua_env = lua_env or _G,
         parser = parser.new(),
-        root = true
+        root = true,
+        symbols = {}
     }, env_meta)
 
     for name, fn in pairs(builtins) do
@@ -92,7 +93,8 @@ env_meta = {
                 env = setmetatable({}, {__index = self.env}),
                 name = name,
                 lua_env = self.lua_env,
-                root = false
+                root = false,
+                symbols = self.symbols
 
             }, env_meta)
         end,
@@ -138,6 +140,17 @@ env_meta = {
                 end
             end
             --]]
+        end,
+
+        intern = function(self, sym)
+            local s = self.symbols[sym:lower()]
+
+            if not s then
+                s = types.symbol.new(sym:lower())
+                self.symbols[sym:lower()] = s
+            end
+
+            return s
         end,
 
         define = function(self, var, val)

@@ -92,7 +92,7 @@ types.symbol_meta = {
         end,
 
         eval = function(self, env)
-            return self
+            return env:intern(self.v)
         end
 
     }, types.base_meta)
