@@ -41,7 +41,7 @@ special_forms["if"] = function(self, env, args)
 
     local cond = args[1]:eval(env)
 
-    if cond:type() ~= "boolean" or cond:getval() then
+    if util.is_true(cond) then
         return args[2]:eval(env)
     else
         return args[3]:eval(env)
@@ -85,7 +85,7 @@ special_forms["cond"] = function(self, env, args)
     for i, clause in ipairs(args) do
         local cond = clause:getval()[1]:eval(env)
 
-        if cond:type() ~= "boolean" or cond:getval() then
+        if util.is_true(cond) then
             return wrap_bodies{table.unpack(clause:getval(), 2)}:eval(env)
         end
     end

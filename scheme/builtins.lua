@@ -270,97 +270,168 @@ end
 --[[
 -- Comparison stuff
 --]]
-builtins["not"] = function(self, env, args)
-    util.expect_argc(self, 1, #args)
-    util.expect(args[1], "boolean")
-
-    return types.boolean.new(not args[1]:getval())
-end
-
-local function boolean_operator(op)
-    return function(self, env, args)
-        util.expect_argc(self, 2, #args)
-
-        util.expect(args[1], "boolean", "invalid operand type")
-        util.expect(args[2], args[1]:type(), "operand type mistmatch")
-
-        return types.boolean.new(op(args[1]:getval(), args[2]:getval()))
-    end
-end
-
-builtins["and"] = boolean_operator(function(a, b) return a and b end)
-builtins["or"]  = boolean_operator(function(a, b) return a  or b end)
-builtins["xor"] = boolean_operator(function(a, b) return a ~=  b end)
-
-builtins["="] = function(self, env, args)
+builtins["eq?"] = function(self, env, args)
     util.expect_argc(self, 2, #args)
 
     local a, b = args[1], args[2]
 
-    util.expect(a, {"symbol",
-                    "number",
-                    "string",
-                    "bool",
-                    "list",
-                    "char"}, "invalid operand type")
+    if a == b then
+        return types.boolean.new(true)
 
-    -- No type coercion
-    util.expect(b, a:type(), "operand type mismatch")
+    elseif (a:type() == "list" and b:type() == "list") and
+          (#a:getval() == 0 and
+           #b:getval() == 0) then
 
-    if a:type() == "symbol" then
-        return types.boolean.new(a == b)
-    elseif a:type() == "number" or
-           a:type() == "string" or
-           a:type() == "char" or
-           a:type() == "bool" then
+        -- TODO: intern empty list
+        return types.boolean.new(true)
+    end
+
+    return types.boolean.new(false)
+end
+
+builtins["eqv?"] = function(self, env, args)
+    util.expect_argc(self, 2, #args)
+
+    local a, b = args[1], args[2]
+
+    -- Same object? Must be equal, same as eq?
+    if a == b then
+        return types.boolean.new(true)
+    end
+
+    -- Different types -> can't be equal because we don't coerce
+    if a:type() ~= b:type() then
+        return types.boolean.new(false)
+    end
+
+    if a:type() == "number" or a:type() == "char" then
         return types.boolean.new(a:getval() == b:getval())
-    else
-        local av, bv = a:getval(), b:getval()
+    elseif a:type() == "procedure" then
+        if a.builtin and b.builtin then
+            return types.boolean.new(a.body == b.body)
+        end
+    elseif a:type() == "list" and (#a:getval() == 0 and #b:getval() == 0) then
+        -- TODO: intern empty list
+        return types.boolean.new(true)
+    end
 
-        if #av ~= #bv then
+    return types.boolean.new(false)
+end
+
+builtins["equal?"] = function(self, env, args)
+    util.expect_argc(self, 2, #args)
+
+    local a, b = args[1], args[2]
+
+    if a:type() == "list" and b:type() == "list" then
+        if #a:getval() ~= #b:getval() then
             return types.boolean.new(false)
         end
 
-        for i = 1, #av do
-            if not builtins["="](self, env, {av[i], bv[i]}):getval() then
+        for i = 1, #a:getval() do
+            if not builtins["equal?"](self, env, {
+                        a:getval()[i],
+                        b:getval()[i]}):getval() then
                 return types.boolean.new(false)
             end
         end
 
         return types.boolean.new(true)
+    elseif a:type() == "string" and b:type() == "string" then
+        return types.boolean.new(a:getval() == b:getval())
+    else
+        return builtins["eqv?"](self, env, args)
     end
 end
 
-builtins["!="] = function(self, env, args)
-    return builtins["not"](self, env, {builtins["="](self, env, args)})
+builtins["not"] = function(self, env, args)
+    util.expect_argc(self, 1, #args)
+
+    return types.boolean.new(not util.is_true(args[1]))
 end
 
-builtins["<"] = function(self, env, args)
+local function boolean_series(op)
+    return function(self, env, args)
+        local res
+
+        for i, val in ipairs(args) do
+            if op(util.is_true(val)) then
+                return val
+            end
+
+            res = val
+        end
+
+        return res
+    end
+end
+
+builtins["and"] = boolean_series(function(b) return not b end)
+builtins["or"]  = boolean_series(function(b) return     b end)
+
+builtins["xor"] = function(self, env, args)
     util.expect_argc(self, 2, #args)
+    util.expect(args[1], "boolean", "invalid operand type")
+    util.expect(args[2], args[1]:type(), "operand type mismatch")
 
-    local a, b = args[1], args[2]
-
-    util.expect(a, {"number", "string"}, "invalid operand type")
-    util.expect(b, a:type(), "operand type mismatch")
-
-    return types.boolean.new(a:getval() < b:getval())
+    return types.boolean.new(args[1]:getval() ~= args[2]:getval())
 end
 
-builtins["<="] = function(self, env, args)
-    util.expect_argc(self, 2, #args)
 
-    return builtins["not"](self, env,
-        {builtins["<"](self, env, {args[2], args[1]})})
+local function binary_comparison(typ)
+    return function(op)
+        return function(self, env, args)
+            util.expect_argc(self, 2, #args)
+
+            local a, b = args[1], args[2]
+
+            util.expect(a, typ, "invalid operand type")
+            util.expect(b, a:type(), "operand type mismatch")
+
+            return types.boolean.new(op(a:getval(), b:getval()))
+        end
+    end
 end
 
-builtins[">"] = function(self, env, args)
-    util.expect_argc(self, 2, #args)
+local function series_comparison(typ)
+    return function(op)
+        return function(self, env, args)
+            util.expect_argc_min(self, 2, #args)
 
-    return builtins["<"](self, env, {args[2], args[1]})
+            local res = true
+
+            for i = 2, #args do
+                local a, b = args[i - 1], args[i]
+
+                util.expect(a, typ, "invalid operand type")
+                util.expect(b, a:type(), "operand type mismatch")
+
+                if not op(a:getval(), b:getval()) then
+                    return types.boolean.new(false)
+                end
+            end
+
+            return types.boolean.new(true)
+        end
+    end
 end
 
-builtins[">="] = function(self, env, args)
-    return builtins["not"](self,  env, {builtins["<"](self, env, args)})
-end
+local numeric_comparison = series_comparison("number")
+
+builtins["="]  = numeric_comparison(function(a, b) return a == b end)
+builtins["!="] = numeric_comparison(function(a, b) return a ~= b end)
+builtins["<"]  = numeric_comparison(function(a, b) return a <  b end)
+builtins["<="] = numeric_comparison(function(a, b) return a <= b end)
+builtins[">"]  = numeric_comparison(function(a, b) return a >  b end)
+builtins[">="] = numeric_comparison(function(a, b) return a >= b end)
+
+local string_comparison = binary_comparison("string")
+
+builtins["string="]  = string_comparison(function(a, b) return a == b end)
+builtins["string!="] = string_comparison(function(a, b) return a ~= b end)
+builtins["string<"]  = string_comparison(function(a, b) return a <  b end)
+builtins["string<="] = string_comparison(function(a, b) return a <= b end)
+builtins["string>"]  = string_comparison(function(a, b) return a >  b end)
+builtins["string>="] = string_comparison(function(a, b) return a >= b end)
 
 return builtins

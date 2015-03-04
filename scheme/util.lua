@@ -80,4 +80,12 @@ function util.ensure(var, cond, t, fmt, ...)
     end
 end
 
+function util.is_true(val)
+    if val:type() ~= "boolean" or val:getval() then
+        return true
+    else
+        return false
+    end
+end
+
 return util

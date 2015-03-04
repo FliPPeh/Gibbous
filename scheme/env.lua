@@ -177,8 +177,11 @@ env_meta = {
 
                 if lv then
                     if type(lv) == "function" then
-                        return types.proc.new_builtin(var,
+                        local v = types.proc.new_builtin(var,
                             make_lua_wrapper(var, lv))
+
+                        self:define(var, v)
+                        return v
                     else
                         return types.toscheme(lv)
                     end
