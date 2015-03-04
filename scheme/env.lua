@@ -107,7 +107,23 @@ env_meta = {
                                 args[i] = types.tolua(args[i])
                             end
 
-                            return types.toscheme(lv(table.unpack(args)))
+                            local res = {xpcall(function()
+                                return lv(table.unpack(args))
+                            end, function(err)
+                                return types.err.new("lua-error", nil, err)
+                            end)}
+
+                            if res[1] then
+                                if #res > 2 then
+                                    return types.toscheme({
+                                        table.unpack(res, 2)
+                                    })
+                                else
+                                    return types.toscheme(res[2])
+                                end
+                            else
+                                error(res[2])
+                            end
                         end
 
                         return types.proc.new_builtin(var, helper)
