@@ -53,7 +53,11 @@ local function is_number(str)
 end
 
 function parser_meta:err(fmt, ...)
-    error((("<in>:%d:%d: "):format(self.line, self.col)) .. fmt:format(...), 0)
+    error(types.err.new("parse-error", {
+        file = self.file,
+        line = self.line,
+        col  = self.col
+    }, fmt:format(...)), 0)
 end
 
 function parser_meta:expect(c)

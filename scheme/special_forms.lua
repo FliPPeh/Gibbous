@@ -35,7 +35,9 @@ end
 --]]
 
 special_forms["if"] = function(self, env, args)
-    util.expect_argc(self, 3, #args)
+    util.ensure(self, #args == 3,
+        "syntax-error",
+        "if: insufficient arguments")
 
     local cond = args[1]:eval(env)
 
@@ -61,18 +63,23 @@ special_forms["cond"] = function(self, env, args)
 
     -- Sanity check before evaluating.
     for i, clause in ipairs(args) do
-        util.expect(clause, "list")
+        util.ensure(clause, clause:type() == "list",
+            "syntax-error",
+            "cond-clause must be a list")
+
         util.ensure(clause, #clause:getval() >= 2,
+            "syntax-error",
             "cond-clause must be a list of at least size 2")
 
         if clause:getval()[1]:type() == "identifier" and
            clause:getval()[1]:getval() == "else" then
 
-           util.ensure(clause, i == #args,
-               "else-clause must be the last clause in a cond")
+            util.ensure(clause, i == #args,
+                "syntax-error",
+                "else-clause must be the last clause in a cond")
 
-           clause:getval()[1] = types.boolean.new(true)
-       end
+            clause:getval()[1] = types.boolean.new(true)
+        end
     end
 
     for i, clause in ipairs(args) do
@@ -120,22 +127,33 @@ local function parse_paramslist(paramslist)
     local defined_params = {}
 
     for i, param in ipairs(paramslist) do
-        util.expect(param, "identifier", "procedure parameter")
+        util.ensure(param, param:type() == "identifier",
+            "syntax-error",
+            "procedure parameter must be an identifier")
 
         local paramname = param:getval()
 
         if paramname == "." then
             if i == #paramslist then
-                util.err(param, "expected variadic parameter following")
+                util.err(param,
+                    "syntax-error",
+                    "expected variadic parameter following")
+
             elseif i ~= #paramslist - 1 then
-                util.err(paramslist[i + 1], "variadic parameter must be last")
+                util.err(paramslist[i + 1],
+                    "syntax-error",
+                    "variadic parameter must be last")
             end
 
-            util.expect(paramslist[i + 1], "identifier", "variadic parameter")
+            util.ensure(paramslist[i + 1],
+                paramslist[i + 1]:type() == "identifier",
+                "syntax-error",
+                "variadic parameter must be an identifier")
 
             local varpar = paramslist[i + 1]
 
             util.ensure(varpar, defined_params[varpar:getval()] == nil,
+                "syntax-error",
                 "parameter with the same name already exists: %s",
                     varpar:getval())
 
@@ -145,6 +163,7 @@ local function parse_paramslist(paramslist)
             break
         else
             util.ensure(param, defined_params[paramname] == nil,
+                "syntax-error",
                 "parameter with the same name already exists: %s",
                     paramname)
 
@@ -167,18 +186,23 @@ local function create_lambda(defp, env, funcname, funcparams, varparam, body)
 end
 
 special_forms["define"] = function(self, env, args)
-    util.expect_argc_min(self, 2, #args)
+    util.ensure(self, #args >= 2,
+        "syntax-error",
+        "define: insufficient arguments")
 
     local var, val = table.unpack(args)
 
-    util.expect(var, {"identifier",  "list"}, "definition")
+    util.ensure(var,
+        var:type() == "identifier" or var:type() == "list",
+        "syntax-error",
+        "definition must be an identifier or a list")
 
     -- Are we defining a variable or a procedure?
     if var:type() == "identifier" then
         -- variable!
-        util.expect_argc_max(self, 2, #args)
-
+        util.ensure(self, #args == 2, "syntax-error")
         util.ensure(self, not env:is_defined(var:getval()),
+            "syntax-error",
             "variable or procedure already defined: %s",
                 var:getval())
 
@@ -186,12 +210,15 @@ special_forms["define"] = function(self, env, args)
 
     else
         -- procedure!
-        util.expect(var:car(), "identifier", "procedure name")
+        util.ensure(var:car(), var:car():type() == "identifier",
+            "syntax-error",
+            "procedure name must be an identifier")
 
         local funcname = var:car():getval()
         local paramslist = var:cdr()
 
         util.ensure(self, not env:is_defined(funcname),
+            "syntax-error",
             "variable or procedure already defined: %s",
                 funcname)
 
@@ -205,11 +232,15 @@ special_forms["define"] = function(self, env, args)
 end
 
 special_forms["lambda"] = function(self, env, args)
-    util.expect_argc_min(self, 2, #args)
+    util.ensure(self, #args >= 2,
+        "syntax-error",
+        "lambda: insufficient arguments")
 
     local paramslist = args[1]
 
-    util.expect(paramslist, "list")
+    util.ensure(paramslist, paramslist:type() == "list",
+        "syntax-error",
+        "parameter list must be a list")
 
     local funcparams, varparam = parse_paramslist(paramslist:getval())
     return create_lambda(self, env, "lambda", funcparams, varparam,
@@ -233,18 +264,27 @@ local function parse_bindings(bindings)
 
     local defined = {}
 
-    util.expect(bindings, "list")
+    util.ensure(bindings, bindings:type() == "list",
+        "syntax-error",
+        "bindings list must be a list")
 
     for i, binding in ipairs(bindings:getval()) do
-        util.expect(binding, "list")
+        util.ensure(binding, binding:type() == "list",
+            "syntax-error",
+            "binding must be a list")
+
         util.ensure(binding, #binding:getval() == 2,
+            "syntax-error",
             "binding must be a list of size 2")
 
-        util.expect(binding:getval()[1], "identifier")
+        util.ensure(binding, binding:getval()[1]:type() =="identifier",
+            "syntax-error",
+            "binding name must be an identifier")
 
         local bindvar, bindval = table.unpack(binding:getval())
 
         util.ensure(bindvar, defined[bindvar:getval()] == nil,
+            "syntax-error",
             "binding with the same name already exists: %s",
                 bindvar:getval())
 
@@ -261,7 +301,9 @@ special_forms["let"] = function(self, env, args)
     --  (let ((a a-val) (b b-val)) body)
     --      -> ((lambda (a b) body) a-val b-val)
     --
-    util.expect_argc_min(self, 2, #args)
+    util.ensure(self, #args >= 2,
+        "syntax-error",
+        "let: insufficient arguments")
 
     local bindings = args[1]
     local params, largs = parse_bindings(bindings)
@@ -283,12 +325,11 @@ special_forms["let*"] = function(self, env, args)
     --             b-val))
     --          a-val)
     --
-    util.expect_argc_min(self, 2, #args)
+    util.ensure(self, #args >= 2,
+        "syntax-error",
+        "let*: insufficient arguments")
 
     local bindings = args[1]
-
-    util.expect(bindings, "list")
-
     local params, largs = parse_bindings(bindings)
     local letenv = env
 

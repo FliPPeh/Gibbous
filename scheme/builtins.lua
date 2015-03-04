@@ -10,7 +10,7 @@ local function make_port(self, path, mode)
     local f, e = io.open(path, mode)
 
     if not f then
-        util.err(self, "failed to open file: %s", e)
+        util.err(self, "io-error", "failed to open file: %s", e)
     end
 
     return types.port.new(f, path, mode)
@@ -129,7 +129,9 @@ end
 function builtins.car(self, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "list")
-    util.ensure(args[1], #args[1]:getval() > 0, "can not car on empty list")
+    util.ensure(args[1], #args[1]:getval() > 0,
+        "undefined-error",
+        "can not car on empty list")
 
     return args[1]:getval()[1]
 end

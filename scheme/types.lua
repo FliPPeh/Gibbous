@@ -61,9 +61,11 @@ types.base_meta = {
         end,
 
         eval = function(self, env)
-            util.err(self, "cannot evaluate value of type %s: %s",
-                self:type(),
-                self)
+            util.err(self,
+                "evaluation-error",
+                "cannot evaluate value of type %s: %s",
+                    self:type(),
+                    self)
         end,
     }
 }
@@ -123,8 +125,10 @@ types.ident_meta = {
                 nval = env:resolve(val:getval())
 
                 if not nval then
-                    util.err(self, "unresolved procedure or variable: %s",
-                        val:getval())
+                    util.err(self,
+                        "not-defined-error",
+                        "unresolved procedure or variable: %s",
+                            val:getval())
                 end
 
                 val = nval
@@ -312,18 +316,24 @@ types.list_meta = {
                 if          head:type() ~= "list"
                         and head:type() ~= "procedure"
                         and head:type() ~= "identifier" then
-                    util.err(head, "cannot invoke on value of type %s: %s",
-                        head:type(),
-                        head)
+                    util.err(head,
+                        "bad-invoke-error",
+                        "cannot invoke on value of type %s: %s",
+                            head:type(),
+                            head)
 
                 elseif head:type() == "list" and #head:getval() == 0 then
-                    util.err(head, "cannot invoke on empty list")
+                    util.err(head,
+                        "bad-invoke-error",
+                        "cannot invoke on empty list")
 
                 elseif head:type() == "list" and
                        head:getval()[1]:type() == "identifier" and
                        head:getval()[1]:getval() == "quote" then
-                    util.err(head, "cannot invoke on quoted list: %s",
-                        head:getval()[2])
+                    util.err(head,
+                        "bad-invoke-error",
+                        "cannot invoke on quoted list: %s",
+                            head:getval()[2])
 
                 end
 
@@ -468,6 +478,50 @@ types.port_meta = {
     }, types.base_meta)
 }
 
+
+types.err = {
+    new = function(typ, pos, message)
+        return setmetatable({
+            errtype = typ,
+            errpos  = pos,
+            errmsg  = message,
+            errtrace = debug.traceback(nil, 2)
+        }, types.err_meta)
+    end
+}
+
+types.err_meta = {
+    __tostring = function(self)
+        return ("(error: %s %q)\n"):format(self.errtype, self.errmsg)
+    end,
+
+    __index = setmetatable({
+        type = function(self)
+            return "error"
+        end,
+
+        eval = function(self, env)
+            return self
+        end,
+
+        tostring = function(self)
+            if self.errpos then
+                return ("%s:%d:%d: %s: %s\n%s"):format(
+                    self.errpos.file,
+                    self.errpos.line,
+                    self.errpos.col,
+                    self.errtype,
+                    self.errmsg,
+                    self.errtrace)
+            else
+                return ("?:?:?: %s: %s\n%s"):format(
+                    self.errtype,
+                    self.errmsg,
+                    self.errtrace)
+            end
+        end
+    }, types.err_meta)
+}
 
 function types.toscheme(val)
     if type(val) == "table" then

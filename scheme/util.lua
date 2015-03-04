@@ -1,12 +1,21 @@
 local util = {}
 
-function util.err(subj, fmt, ...)
+function util.err(subj, t, fmt, ...)
+    local types = require "scheme.types"
     local file, line, col = subj:getpos()
 
     if file and line and col then
-        error(("%s:%d:%d: "):format(file, line, col) .. fmt:format(...), 0)
+        local position = {
+            file = file,
+            line = line,
+            col  = col
+        }
+
+        -- error(("%s:%d:%d: "):format(file, line, col) .. fmt:format(...), 0)
+        error(types.err.new(t, position, fmt:format(...)), 0)
     else
-        error("?:?:?: " .. fmt:format(...), 0)
+        -- error("?:?:?: " .. fmt:format(...), 0)
+        error(types.err.new(t, nil, fmt:format(...)), 0)
     end
 end
 
@@ -14,7 +23,7 @@ function util.expect_argc_min(var, n, have)
     name = var:getval() and (var:getval() .. ": ") or ""
 
     if have < n then
-        util.err(var, name ..
+        util.err(var, "argument-error", name ..
             "too few arguments: expected at least %d; got %d",
                 n, have)
     end
@@ -24,7 +33,7 @@ function util.expect_argc_max(var, n, have)
     name = var:getval() and (var:getval() .. ": ") or ""
 
     if have > n then
-        util.err(var, name ..
+        util.err(var, "argument-error", name ..
             "too many arguments: expected %d; got %d",
                 n, have)
     end
@@ -40,10 +49,11 @@ function util.expect(var, typ, as)
 
     if type(typ) == "string" then
         if var:type() ~= typ then
-            util.err(var, as ..  "expected value of type %s; got: %s (%s)",
-                typ,
-                var,
-                var:type())
+            util.err(var, "type-error",
+                as ..  "expected value of type %s; got: %s (%s)",
+                    typ,
+                    var,
+                    var:type())
         end
     else
         for _, t in ipairs(typ) do
@@ -52,20 +62,21 @@ function util.expect(var, typ, as)
             end
         end
 
-        util.err(var, as .. "expected value of either type %s; got: %s (%s)",
-            table.concat(typ, ", "),
-            var,
-            var:type())
+        util.err(var, "type-error",
+            as .. "expected value of either type %s; got: %s (%s)",
+                table.concat(typ, ", "),
+                var,
+                var:type())
     end
 end
 
 function util.not_implemented(var)
-    util.err(var, "not implemented")
+    util.err(var, "not-implemented", "not implemented")
 end
 
-function util.ensure(var, cond, fmt, ...)
+function util.ensure(var, cond, t, fmt, ...)
     if not cond then
-        util.err(var, fmt:format(...))
+        util.err(var, t, fmt:format(...))
     end
 end
 
