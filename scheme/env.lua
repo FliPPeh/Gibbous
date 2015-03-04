@@ -50,6 +50,41 @@ function env.new_environment(lua_env)
     return self
 end
 
+local function make_lua_wrapper(name, wrapped_function)
+    return function(self, args)
+        for i = 1, #args do
+            args[i] = types.tolua(args[i])
+        end
+
+        local res = {xpcall(function()
+            return wrapped_function(table.unpack(args))
+
+        end, function(err)
+            local f, l, c = self:getpos()
+            local location = {
+                file = f,
+                line = l,
+                col  = c
+            }
+
+            return types.err.new("lua-error", location,
+                ("in Lua function %s: %s"):format(name, err))
+        end)}
+
+        if res[1] then
+            if #res > 2 then
+                return types.toscheme({
+                    table.unpack(res, 2)
+                })
+            else
+                return types.toscheme(res[2])
+            end
+        else
+            error(res[2])
+        end
+    end
+end
+
 env_meta = {
     __index = {
         derive = function(self, name)
@@ -75,13 +110,34 @@ env_meta = {
         end,
 
         eval_ast = function(self, ast)
-            local last
+            local ok, res = xpcall(function()
+                local last
 
-            for _, toplevel in ipairs(ast) do
-                last = toplevel:eval(self)
+                for _, toplevel in ipairs(ast) do
+                    last = toplevel:eval(self)
+                end
+
+                return last
+            end, function(err)
+                if type(err) ~= "table" then
+                    return debug.traceback(err, 1)
+                else
+                    return err
+                end
+            end)
+
+            if ok then
+                return res
+            else
+                print("Uncaught error:")
+
+                if type(res) == "table" then
+                    print(res:tostring())
+                else
+                    print(res)
+                end
             end
-
-            return last
+            --]]
         end,
 
         define = function(self, var, val)
@@ -102,31 +158,8 @@ env_meta = {
 
                 if lv then
                     if type(lv) == "function" then
-                        local function helper(self, args)
-                            for i = 1, #args do
-                                args[i] = types.tolua(args[i])
-                            end
-
-                            local res = {xpcall(function()
-                                return lv(table.unpack(args))
-                            end, function(err)
-                                return types.err.new("lua-error", nil, err)
-                            end)}
-
-                            if res[1] then
-                                if #res > 2 then
-                                    return types.toscheme({
-                                        table.unpack(res, 2)
-                                    })
-                                else
-                                    return types.toscheme(res[2])
-                                end
-                            else
-                                error(res[2])
-                            end
-                        end
-
-                        return types.proc.new_builtin(var, helper)
+                        return types.proc.new_builtin(var,
+                            make_lua_wrapper(var, lv))
                     else
                         return types.toscheme(lv)
                     end

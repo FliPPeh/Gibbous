@@ -485,12 +485,12 @@ types.port_meta = {
 
 
 types.err = {
-    new = function(typ, pos, message)
+    new = function(typ, pos, message, lvl)
         return setmetatable({
             errtype = typ,
             errpos  = pos,
             errmsg  = message,
-            errtrace = debug.traceback(nil, 2)
+            errtrace = debug.traceback(nil, lvl or 2)
         }, types.err_meta)
     end
 }
