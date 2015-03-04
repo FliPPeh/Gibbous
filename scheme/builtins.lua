@@ -17,14 +17,14 @@ local function make_port(self, path, mode)
 
 end
 
-builtins["open-input-file"] = function(self, args)
+builtins["open-input-file"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "string")
 
     return make_port(self, args[1]:getval(), "r")
 end
 
-builtins["open-output-file"] = function(self, args)
+builtins["open-output-file"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "string")
 
@@ -32,7 +32,7 @@ builtins["open-output-file"] = function(self, args)
 end
 
 
-function builtins.display(self, args)
+function builtins.display(self, env, args)
     for i, arg in ipairs(args) do
         if arg:type() == "string" or arg:type() == "char" then
             io.write(arg:getval())
@@ -44,7 +44,7 @@ function builtins.display(self, args)
     return types.list.new{}
 end
 
-builtins["read-line"] = function(self, args)
+builtins["read-line"] = function(self, env, args)
     util.expect_argc_max(self, 1, #args)
 
     if #args > 0 then
@@ -56,7 +56,7 @@ builtins["read-line"] = function(self, args)
     return types.str.new(io.read("*l"))
 end
 
-function builtins.format(self, args)
+function builtins.format(self, env, args)
     util.expect_argc_min(self, 1, #args)
 
     local fargs = {}
@@ -71,7 +71,7 @@ function builtins.format(self, args)
     return types.str.new(string.format(args[1]:getval(), table.unpack(fargs)))
 end
 
-builtins["to-string"] = function(self, args)
+builtins["to-string"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
 
     return types.str.new(tostring(args[1]))
@@ -81,7 +81,7 @@ end
 -- Number stuff
 --]]
 local function numeric_primitive(op)
-    return function(self, args)
+    return function(self, env, args)
         util.expect_argc(self, 2, #args)
 
         local a, b = args[1], args[2]
@@ -94,7 +94,7 @@ local function numeric_primitive(op)
 end
 
 local function unary_numeric_primitive(op)
-    return function(self, args)
+    return function(self, env, args)
         util.expect_argc(self, 1, #args)
         util.expect(args[1], "number", "invalid operand type")
 
@@ -115,18 +115,18 @@ builtins["neg"] = unary_numeric_primitive(function(a) return -a end)
 --[[
 -- List stuff
 --]]
-function builtins.list(self, args)
+function builtins.list(self, env, args)
     return types.list.new{table.unpack(args)}
 end
 
-function builtins.cons(self, args)
+function builtins.cons(self, env, args)
     util.expect_argc(self, 2, #args)
     util.expect(args[2], "list")
 
     return types.list.new{args[1], table.unpack(args[2]:getval())}
 end
 
-function builtins.car(self, args)
+function builtins.car(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "list")
     util.ensure(args[1], #args[1]:getval() > 0,
@@ -136,28 +136,28 @@ function builtins.car(self, args)
     return args[1]:getval()[1]
 end
 
-function builtins.cdr(self, args)
+function builtins.cdr(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "list")
 
     return types.list.new{table.unpack(args[1]:getval(), 2)}
 end
 
-function builtins.length(self, args)
+function builtins.length(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], {"list", "string"})
 
     return types.number.new(#args[1]:getval())
 end
 
-builtins["pair?"] = function(self, args)
+builtins["pair?"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "list")
 
     return types.boolean.new(#args[1]:getval() == 2)
 end
 
-builtins["null?"] = function(self, args)
+builtins["null?"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "list")
 
@@ -169,7 +169,7 @@ end
 -- Type stuff
 --]]
 local function is_type(typ)
-    return function(self, args)
+    return function(self, env, args)
         util.expect_argc(self, 1, #args)
 
         return types.boolean.new(args[1]:type() == typ)
@@ -187,20 +187,20 @@ for i, t in ipairs{"symbol",
     builtins[t .. "?"] = is_type(t)
 end
 
-function builtins.type(self, args)
+function builtins.type(self, env, args)
     util.expect_argc(self, 1, #args)
 
     return types.str.new(args[1]:type())
 end
 
-builtins["symbol->string"] = function(self, args)
+builtins["symbol->string"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "symbol")
 
     return types.str.new(args[1]:getval())
 end
 
-builtins["string->symbol"] = function(self, args)
+builtins["string->symbol"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "string")
 
@@ -208,7 +208,7 @@ builtins["string->symbol"] = function(self, args)
 end
 
 
-builtins["list->string"] = function(self, args)
+builtins["list->string"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "list")
 
@@ -223,7 +223,7 @@ builtins["list->string"] = function(self, args)
     return types.str.new(buf)
 end
 
-builtins["string->list"] = function(self, args)
+builtins["string->list"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "string")
 
@@ -237,14 +237,14 @@ builtins["string->list"] = function(self, args)
 end
 
 
-builtins["number->string"] = function(self, args)
+builtins["number->string"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "number")
 
     return types.str.new(tonumber(args[1]:getval()))
 end
 
-builtins["string->number"] = function(self, args)
+builtins["string->number"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "string")
 
@@ -252,14 +252,14 @@ builtins["string->number"] = function(self, args)
 end
 
 
-builtins["char->integer"] = function(self, args)
+builtins["char->integer"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "char")
 
     return types.number.new(args[1]:getval():byte(1))
 end
 
-builtins["integer->char"] = function(self, args)
+builtins["integer->char"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "number")
 
@@ -270,7 +270,7 @@ end
 --[[
 -- Comparison stuff
 --]]
-builtins["not"] = function(self, args)
+builtins["not"] = function(self, env, args)
     util.expect_argc(self, 1, #args)
     util.expect(args[1], "boolean")
 
@@ -278,7 +278,7 @@ builtins["not"] = function(self, args)
 end
 
 local function boolean_operator(op)
-    return function(self, args)
+    return function(self, env, args)
         util.expect_argc(self, 2, #args)
 
         util.expect(args[1], "boolean", "invalid operand type")
@@ -292,7 +292,7 @@ builtins["and"] = boolean_operator(function(a, b) return a and b end)
 builtins["or"]  = boolean_operator(function(a, b) return a  or b end)
 builtins["xor"] = boolean_operator(function(a, b) return a ~=  b end)
 
-builtins["="] = function(self, args)
+builtins["="] = function(self, env, args)
     util.expect_argc(self, 2, #args)
 
     local a, b = args[1], args[2]
@@ -321,7 +321,7 @@ builtins["="] = function(self, args)
         end
 
         for i = 1, #av do
-            if not builtins["="](self, {av[i], bv[i]}):getval() then
+            if not builtins["="](self, env, {av[i], bv[i]}):getval() then
                 return types.boolean.new(false)
             end
         end
@@ -330,11 +330,11 @@ builtins["="] = function(self, args)
     end
 end
 
-builtins["!="] = function(self, args)
-    return builtins["not"](self, {builtins["="](self, args)})
+builtins["!="] = function(self, env, args)
+    return builtins["not"](self, env, {builtins["="](self, env, args)})
 end
 
-builtins["<"] = function(self, args)
+builtins["<"] = function(self, env, args)
     util.expect_argc(self, 2, #args)
 
     local a, b = args[1], args[2]
@@ -345,20 +345,21 @@ builtins["<"] = function(self, args)
     return types.boolean.new(a:getval() < b:getval())
 end
 
-builtins["<="] = function(self, args)
+builtins["<="] = function(self, env, args)
     util.expect_argc(self, 2, #args)
 
-    return builtins["not"](self, {builtins["<"](self, {args[2], args[1]})})
+    return builtins["not"](self, env,
+        {builtins["<"](self, env, {args[2], args[1]})})
 end
 
-builtins[">"] = function(self, args)
+builtins[">"] = function(self, env, args)
     util.expect_argc(self, 2, #args)
 
-    return builtins["<"](self, {args[2], args[1]})
+    return builtins["<"](self, env, {args[2], args[1]})
 end
 
-builtins[">="] = function(self, args)
-    return builtins["not"](self, {builtins["<"](self, args)})
+builtins[">="] = function(self, env, args)
+    return builtins["not"](self,  env, {builtins["<"](self, env, args)})
 end
 
 return builtins

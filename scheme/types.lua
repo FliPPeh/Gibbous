@@ -417,7 +417,7 @@ types.proc_meta = {
                     table.insert(evargs, argv)
                 end
 
-                return self.body(self, evargs)
+                return self.body(self, env, evargs)
             end
 
             util.expect_argc_min(self, #self.params, #args)

@@ -51,7 +51,7 @@ function env.new_environment(lua_env)
 end
 
 local function make_lua_wrapper(name, wrapped_function)
-    return function(self, args)
+    return function(self, env, args)
         for i = 1, #args do
             args[i] = types.tolua(args[i])
         end
