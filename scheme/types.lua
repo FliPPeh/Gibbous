@@ -525,7 +525,13 @@ types.err_meta = {
 
 function types.toscheme(val)
     if type(val) == "table" then
-        return types.list.new(val)
+        local t = types.list.new{}
+
+        for i, v in ipairs(val) do
+            table.insert(t:getval(), types.toscheme(v))
+        end
+
+        return t
     elseif type(val) == "string" then
         return types.str.new(val)
     elseif type(val) == "number" then
