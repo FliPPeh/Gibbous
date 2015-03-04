@@ -440,6 +440,35 @@ types.proc_meta = {
 }
 
 
+types.port = {
+    new = function(file, path, mode)
+        return setmetatable({
+            v = file,
+            path = path,
+            mode = mode
+        }, types.port_meta)
+    end
+}
+
+types.port_meta = {
+    __tostring = function(self)
+        return ("(%s-file %q)"):format(
+            self.mode == "r" and "input" or "output",
+            self.path)
+    end,
+
+    __index = setmetatable({
+        type = function(self)
+            return "port"
+        end,
+
+        eval = function(self, env)
+            return self
+        end
+    }, types.base_meta)
+}
+
+
 function types.toscheme(val)
     if type(val) == "table" then
         return types.list.new(val)

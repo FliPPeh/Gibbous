@@ -6,19 +6,54 @@ local types = require "scheme.types"
 --[[
 -- Basic stuff
 --]]
+local function make_port(self, path, mode)
+    local f, e = io.open(path, mode)
 
--- Interop would pass Lua's print lists as tables, which don't print well,
--- so we make our own print.
-function builtins.print(self, args)
-    for i = 1, #args do
-        args[i] = args[i]:type() == "string" and
-                        args[i]:getval()
-                     or tostring(args[i])
+    if not f then
+        util.err(self, "failed to open file: %s", e)
     end
 
-    print(table.unpack(args))
+    return types.port.new(f, path, mode)
+
+end
+
+builtins["open-input-file"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "string")
+
+    return make_port(self, args[1]:getval(), "r")
+end
+
+builtins["open-output-file"] = function(self, args)
+    util.expect_argc(self, 1, #args)
+    util.expect(args[1], "string")
+
+    return make_port(self, args[1]:getval(), "w")
+end
+
+
+function builtins.display(self, args)
+    for i, arg in ipairs(args) do
+        if arg:type() == "string" or arg:type() == "char" then
+            io.write(arg:getval())
+        else
+            io.write(tostring(arg))
+        end
+    end
 
     return types.list.new{}
+end
+
+builtins["read-line"] = function(self, args)
+    util.expect_argc_max(self, 1, #args)
+
+    if #args > 0 then
+        util.expect(args[1], "port")
+
+        return types.str.new(args[1]:getval():read("*l"))
+    end
+
+    return types.str.new(io.read("*l"))
 end
 
 function builtins.format(self, args)
@@ -145,7 +180,8 @@ for i, t in ipairs{"symbol",
                    "string",
                    "boolean",
                    "char",
-                   "procedure"} do
+                   "procedure",
+                   "port"} do
     builtins[t .. "?"] = is_type(t)
 end
 
