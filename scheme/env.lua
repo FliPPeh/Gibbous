@@ -142,17 +142,23 @@ env_meta = {
 
         define = function(self, var, val)
             -- print(("%s: define %s to: %s"):format(self.name, var, val))
-            self.env[var] = val
+            self.env[var:lower()] = val
         end,
 
         is_defined = function(self, var)
-            return self.env[var] ~= nil
+            local special_forms = require "scheme.special_forms"
+
+            if special_forms[var:lower()] then
+                return true
+            end
+
+            return self.env[var:lower()] ~= nil
         end,
 
         resolve = function(self, var)
             -- print(("%s: looking up %s"):format(self.name, var))
             if self:is_defined(var) then
-                return self.env[var]
+                return self.env[var:lower()]
             else
                 local lv = self:locate_lua(var)
 

@@ -343,8 +343,8 @@ types.list_meta = {
             -- Atom, resolve to function or special form.
             if head:type() == "identifier" then
                 -- Is it a special form?
-                if special_forms[head:getval()] then
-                    return special_forms[head:getval()](head, env, tail)
+                if special_forms[head:getval():lower()] then
+                    return special_forms[head:getval():lower()](head, env, tail)
 
                 else
                     -- Have something to look up, so look it up.
