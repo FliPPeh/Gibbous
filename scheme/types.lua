@@ -311,15 +311,6 @@ types.list_meta = {
             return "list"
         end,
 
-        insert = function(self, val)
-            if self == types.list.empty_list then
-                return types.list.new{val}
-            else
-                table.insert(self.v, val)
-                return self
-            end
-        end,
-
         eval = function(self, env)
             -- Evaluating a list is always a function call.
             local head = self.v[1]
@@ -446,17 +437,17 @@ types.proc_meta = {
                     self.env:define(self.params[i], arg)
                 end
             else
-                local vargs = types.list.new{}
+                local vargs = {}
 
                 for i, arg in ipairs(args) do
                     if i > #self.params then
-                        vargs = vargs:insert(arg)
+                        table.insert(vargs, arg)
                     else
                         self.env:define(self.params[i], arg)
                     end
                 end
 
-                self.env:define(self.varparam, vargs)
+                self.env:define(self.varparam, types.list.new(vargs))
             end
 
             return self.body:eval(self.env)
@@ -540,14 +531,14 @@ types.err_meta = {
 
 function types.toscheme(val)
     if type(val) == "table" then
-        local t = types.list.new{}
+        local t = {}
         local toscheme = types.toscheme
 
         for i, v in ipairs(val) do
-            t = t:insert(toscheme(v))
+            table.insert(t, toscheme(v))
         end
 
-        return t
+        return types.list.new(t)
     elseif type(val) == "string" then
         return types.str.new(val)
     elseif type(val) == "number" then
