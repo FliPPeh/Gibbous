@@ -218,12 +218,12 @@ special_forms["define"] = function(self, env, args)
 
     else
         -- procedure!
-        ensure(var:car(), var:car():type() == "identifier",
+        ensure(var:getval()[1], var:getval()[1]:type() == "identifier",
             "syntax-error",
             "procedure name must be an identifier")
 
-        local funcname = var:car():getval()
-        local paramslist = var:cdr()
+        local funcname = var:getval()[1]:getval()
+        local paramslist = {table.unpack(var:getval(), 2)}
 
         ensure(self, not env:is_defined(funcname),
             "syntax-error",

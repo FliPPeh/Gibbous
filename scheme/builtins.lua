@@ -344,13 +344,6 @@ end
 local function is_eq(a, b)
     if a == b then
         return bool_new(true)
-
-    elseif (a:type() == "list" and b:type() == "list") and
-          (#a:getval() == 0 and
-           #b:getval() == 0) then
-
-        -- TODO: intern empty list
-        return true
     else
         return false
     end

@@ -281,9 +281,17 @@ types.boolean_meta = {
 
 types.list = {
     new = function(list)
-        return setmetatable({
-            v = list
-        }, types.list_meta)
+        if not list or #list == 0 then
+            if not types.list.empty_list then
+                types.list.empty_list = setmetatable({v = {}}, types.list_meta)
+            end
+
+            return types.list.empty_list
+        else
+            return setmetatable({
+                v = list
+            }, types.list_meta)
+        end
     end
 }
 
@@ -303,24 +311,25 @@ types.list_meta = {
             return "list"
         end,
 
-        car = function(self)
-            return self:getval()[1]
-        end,
-
-        cdr = function(self)
-            return {table.unpack(self:getval(), 2)}
+        insert = function(self, val)
+            if self == types.list.empty_list then
+                return types.list.new{val}
+            else
+                table.insert(self.v, val)
+                return self
+            end
         end,
 
         eval = function(self, env)
             -- Evaluating a list is always a function call.
-            local head = self:car()
+            local head = self.v[1]
 
             -- Empty list evaluates to itself
             if not head then
                 return self
             end
 
-            local tail = self:cdr()
+            local tail = {table.unpack(self.v, 2)}
 
             -- Look at head to find out what we need to do.
             if head:type() == "procedure" then
@@ -441,7 +450,7 @@ types.proc_meta = {
 
                 for i, arg in ipairs(args) do
                     if i > #self.params then
-                        table.insert(vargs:getval(), arg)
+                        vargs = vargs:insert(arg)
                     else
                         self.env:define(self.params[i], arg)
                     end
@@ -535,7 +544,7 @@ function types.toscheme(val)
         local toscheme = types.toscheme
 
         for i, v in ipairs(val) do
-            table.insert(t:getval(), toscheme(v))
+            t = t:insert(toscheme(v))
         end
 
         return t
