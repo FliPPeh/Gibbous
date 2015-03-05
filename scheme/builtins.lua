@@ -345,11 +345,7 @@ end
 --[[
 -- Comparison stuff
 --]]
-builtins["eq?"] = function(self, env, args)
-    expect_argc(self, 2, #args)
-
-    local a, b = args[1], args[2]
-
+local function is_eq(a, b)
     if a == b then
         return bool_new(true)
 
@@ -358,10 +354,60 @@ builtins["eq?"] = function(self, env, args)
            #b:getval() == 0) then
 
         -- TODO: intern empty list
-        return bool_new(true)
+        return true
+    else
+        return false
     end
+end
 
-    return bool_new(false)
+local function is_eqv(a, b)
+    if is_eq(a, b) then
+        return true
+
+    elseif a:type() == "number" or a:type() == "char" then
+        return a:getval() == b:getval()
+
+    elseif a:type() == "procedure" then
+        if a.builtin and b.builtin then
+            return a.body == b.body
+        end
+
+    else
+        return false
+    end
+end
+
+local function is_equal(a, b)
+    if is_eqv(a, b) then
+        return true
+
+    elseif a:type() == "string" then
+        return a:getval() == b:getval()
+
+    elseif a:type() == "list" then
+        local a_val, b_val = a:getval(), b:getval()
+
+        if #a_val ~= #b_val then
+            return false
+        end
+
+        for i = 1, #a_val do
+            if not is_equal(a_val[i], b_val[i]) then
+                return false
+            end
+        end
+
+        return true
+
+    else
+        return false
+    end
+end
+
+builtins["eq?"] = function(self, env, args)
+    expect_argc(self, 2, #args)
+
+    return bool_new(is_eq(args[1], args[2]))
 end
 
 builtins["eqv?"] = function(self, env, args)
@@ -369,28 +415,11 @@ builtins["eqv?"] = function(self, env, args)
 
     local a, b = args[1], args[2]
 
-    -- Same object? Must be equal, same as eq?
-    if a == b then
-        return bool_new(true)
-    end
-
-    -- Different types -> can't be equal because we don't coerce
     if a:type() ~= b:type() then
         return bool_new(false)
+    else
+        return bool_new(is_eqv(a, b))
     end
-
-    if a:type() == "number" or a:type() == "char" then
-        return bool_new(a:getval() == b:getval())
-    elseif a:type() == "procedure" then
-        if a.builtin and b.builtin then
-            return bool_new(a.body == b.body)
-        end
-    elseif a:type() == "list" and (#a:getval() == 0 and #b:getval() == 0) then
-        -- TODO: intern empty list
-        return bool_new(true)
-    end
-
-    return bool_new(false)
 end
 
 builtins["equal?"] = function(self, env, args)
@@ -398,26 +427,13 @@ builtins["equal?"] = function(self, env, args)
 
     local a, b = args[1], args[2]
 
-    if a:type() == "list" and b:type() == "list" then
-        if #a:getval() ~= #b:getval() then
-            return bool_new(false)
-        end
-
-        for i = 1, #a:getval() do
-            if not builtins["equal?"](self, env, {
-                        a:getval()[i],
-                        b:getval()[i]}):getval() then
-                return bool_new(false)
-            end
-        end
-
-        return bool_new(true)
-    elseif a:type() == "string" and b:type() == "string" then
-        return bool_new(a:getval() == b:getval())
+    if a:type() ~= b:type() then
+        return bool_new(false)
     else
-        return builtins["eqv?"](self, env, args)
+        return bool_new(is_equal(a, b))
     end
 end
+
 
 builtins["not"] = function(self, env, args)
     expect_argc(self, 1, #args)
