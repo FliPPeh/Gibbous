@@ -77,10 +77,77 @@ builtins["to-string"] = function(self, env, args)
     return types.str.new(tostring(args[1]))
 end
 
+builtins["eval"] = function(self, env, args)
+    util.expect_argc_min(self, 1, #args)
+    util.expect_argc_max(self, 2, #args)
+
+    if #args == 2 then
+        util.not_implemented(args[2], "eval environment not yet supported")
+    end
+
+    return args[1]:eval(env)
+end
+
+builtins["apply"] = function(self, env, args)
+    util.expect_argc(self, 2, #args)
+    util.expect(args[1], "procedure")
+    util.expect(args[2], "list")
+
+    return args[1]:call(env, args[2]:getval())
+end
+
 --[[
 -- Number stuff
 --]]
-local function numeric_primitive(op)
+local function numeric_primitive(op, ident)
+    return function(self, env, args)
+        util.expect_argc_min(self, 0, #args)
+
+        local res = ident
+
+        for i = 1, #args do
+            local a = args[i]
+
+            util.expect(a, "number", "invalid operand type")
+
+            res = op(res, a:getval())
+        end
+
+        return types.number.new(res)
+    end
+end
+
+local function unary_numeric_primitive(op, ident)
+    return function(self, env, args)
+        util.expect_argc_min(self, 1, #args)
+
+        util.expect(args[1], "number", "invalid operand type")
+
+        if #args == 1 then
+            return types.number.new(op(ident, args[1]:getval()))
+        else
+            local res = args[1]:getval()
+
+            for i = 2, #args do
+                local a = args[i]
+
+                util.expect(a, "number", "invalid operand type")
+
+                res = op(res, a:getval())
+            end
+
+            return types.number.new(res)
+        end
+    end
+end
+
+
+builtins["+"] = numeric_primitive(function(a, b) return a + b end, 0)
+builtins["*"] = numeric_primitive(function(a, b) return a * b end, 1)
+builtins["-"] = unary_numeric_primitive(function(a, b) return a - b end, 0)
+builtins["/"] = unary_numeric_primitive(function(a, b) return a / b end, 1)
+
+local function binary_numeric_primitive(op)
     return function(self, env, args)
         util.expect_argc(self, 2, #args)
 
@@ -93,24 +160,16 @@ local function numeric_primitive(op)
     end
 end
 
-local function unary_numeric_primitive(op)
-    return function(self, env, args)
-        util.expect_argc(self, 1, #args)
-        util.expect(args[1], "number", "invalid operand type")
+-- Remainder could be implemented with interop, but it is related to modulo
+-- which can't be implemented with interop, so we'll group it here.
+builtins["remainder"] = binary_numeric_primitive(function(a, b)
+    return math.fmod(a, b)
+end)
 
-        return types.number.new(op(args[1]:getval()))
-    end
-end
+builtins["modulo"] = binary_numeric_primitive(function(a, b)
+    return a % b
+end)
 
-
-builtins["+"] = numeric_primitive(function(a, b) return a + b end)
-builtins["-"] = numeric_primitive(function(a, b) return a - b end)
-builtins["*"] = numeric_primitive(function(a, b) return a * b end)
-builtins["/"] = numeric_primitive(function(a, b) return a / b end)
-builtins["%"] = numeric_primitive(function(a, b) return a % b end)
-builtins["^"] = numeric_primitive(function(a, b) return a ^ b end)
-
-builtins["neg"] = unary_numeric_primitive(function(a) return -a end)
 
 --[[
 -- List stuff
@@ -183,7 +242,8 @@ for i, t in ipairs{"symbol",
                    "boolean",
                    "char",
                    "procedure",
-                   "port"} do
+                   "port",
+                   "error"} do
     builtins[t .. "?"] = is_type(t)
 end
 

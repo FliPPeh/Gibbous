@@ -1,3 +1,4 @@
+; Functional stuff
 (define (map fn ls)
   (if (null? ls)
         (list)
@@ -25,9 +26,43 @@
     (list)
     ls))
 
+; I/O stuff
 (define (newline)
   (display #\newline))
 
+; Type stuff
 (define (string . cs)
   (list->string cs))
 
+; Math stuff
+(define (sin x) (math.sin x))
+(define (cos x) (math.cos x))
+(define (tan x) (math.tan x))
+(define (asin x) (math.asin x))
+(define (acos x) (math.acos x))
+(define (atan x) (math.atan x))
+
+(define (sinh x) (math.sinh x))
+(define (cosh x) (math.cosh x))
+(define (tanh x) (math.tanh x))
+
+(define (sqrt n) (math.sqrt n))
+(define (expt base n) (math.pow base n))
+(define (log base n) (math.log base n))
+
+(define (floor x) (math.floor x))
+(define (ceiling x) (math.ceil x))
+(define (truncate x)
+  (if (> x 0)
+    (floor x)
+    (- (floor (- x)))))
+
+(define (round x)
+  (if (>= (- x (floor x)) 0.5)
+    (+ (floor x) 1)
+    (floor x)))
+
+(define (abs x)
+  (if (< x 0)
+    (- x)
+    x))

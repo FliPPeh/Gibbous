@@ -70,8 +70,9 @@ function util.expect(var, typ, as)
     end
 end
 
-function util.not_implemented(var)
-    util.err(var, "not-implemented", "not implemented")
+function util.not_implemented(var, fmt, ...)
+    util.err(var, "not-implemented",
+        fmt and fmt:format(...) or "not implemented")
 end
 
 function util.ensure(var, cond, t, fmt, ...)
