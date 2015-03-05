@@ -309,69 +309,63 @@ types.list_meta = {
 
             -- Empty list evaluates to itself
             if not head then
-                util.err(self, "bad-invoke-error", "cannot invoke empty list")
+                return self
             end
 
             local tail = self:cdr()
 
-            -- Save source position so error messages point to this atom,
-            -- rather than the place where the value it's holding was
-            -- defined.
-            local df, dl, dc = head:getpos()
-
-            -- Look for something callable, or something that can be
-            -- resolved to something callable.
-            while head:type() ~= "identifier" and head:type() ~= "procedure" do
-                head:setevalpos(df, dl, dc)
-
-                -- Can it be evaluated directly or looked up further?
-                if          head:type() ~= "list"
-                        and head:type() ~= "procedure"
-                        and head:type() ~= "identifier" then
-                    util.err(head,
-                        "bad-invoke-error",
-                        "cannot invoke on value of type %s: %s",
-                            head:type(),
-                            head)
-
-                elseif head:type() == "list" and #head:getval() == 0 then
-                    util.err(head,
-                        "bad-invoke-error",
-                        "cannot invoke on empty list")
-
-                elseif head:type() == "list" and
-                       head:getval()[1]:type() == "identifier" and
-                       head:getval()[1]:getval() == "quote" then
-                    util.err(head,
-                        "bad-invoke-error",
-                        "cannot invoke on quoted list: %s",
-                            head:getval()[2])
-
-                end
-
-                head = head:eval(env)
-            end
-
-            -- Atom, resolve to function or special form.
-            if head:type() == "identifier" then
-                -- Is it a special form?
+            -- Look at head to find out what we need to do.
+            if head:type() == "procedure" then
+                -- Best case, we already got our callable, nothing to do
+            elseif head:type() == "identifier" then
+                -- Next best case, we have something to look up or it's a
+                -- special form.
                 if special_forms[head:getval():lower()] then
                     return special_forms[head:getval():lower()](head, env, tail)
-
-                else
-                    -- Have something to look up, so look it up.
-                    while head:type() ~= "procedure" do
-                        head = head:eval(env)
-                    end
-
-                    head:setevalpos(df, dl, dc)
                 end
+
+                local target = head:eval(env)
+
+                util.ensure(head, target:type() == "procedure",
+                    "bad-invoke-error",
+                    "cannot invoke on %s of type %s",
+                        target,
+                        target:type())
+
+                head = target
+
+            elseif head:type() == "list" then
+                -- Annoying case, another function call or the empty list
+                local res = head:eval(env)
+
+                util.ensure(head, res:type() == "procedure",
+                    "bad-invoke-error",
+                    "cannot invoke on %s of type %s",
+                        res,
+                        res:type())
+
+                head = res
+
+            else
+                util.err(head,
+                    "bad-invoke-error",
+                    "cannot invoke on %s of type %s",
+                        head,
+                        head:type())
+            end
+
+            for i, arg in ipairs(tail) do
+                local argv = arg:eval(env)
+                argv:setevalpos(arg:getpos())
+
+                tail[i] = argv
             end
 
             return head:call(env, tail)
         end
     }, types.base_meta)
 }
+
 
 types.proc = {
     new = function(name, parent_env, params, variadic_param, body)
@@ -420,16 +414,7 @@ types.proc_meta = {
         call = function(self, env, args)
             if type(self.body) == "function" then
                 -- builtin, just pass it the raw arguments
-                local evargs = {}
-
-                for i, arg in ipairs(args) do
-                    local argv = arg:eval(env)
-                    argv:setevalpos(arg:getpos())
-
-                    table.insert(evargs, argv)
-                end
-
-                return self.body(self, env, evargs)
+                return self.body(self, env, args)
             end
 
             util.expect_argc_min(self, #self.params, #args)
@@ -439,22 +424,16 @@ types.proc_meta = {
                 util.expect_argc_max(self, #self.params, #args)
 
                 for i, arg in ipairs(args) do
-                    local argv = arg:eval(env)
-                    argv:setevalpos(arg:getpos())
-
-                    self.env:define(self.params[i], argv)
+                    self.env:define(self.params[i], arg)
                 end
             else
                 local vargs = types.list.new{}
 
                 for i, arg in ipairs(args) do
-                    local argv = arg:eval(env)
-                    argv:setevalpos(arg:getpos())
-
                     if i > #self.params then
-                        table.insert(vargs:getval(), argv)
+                        table.insert(vargs:getval(), arg)
                     else
-                        self.env:define(self.params[i], argv)
+                        self.env:define(self.params[i], arg)
                     end
                 end
 
