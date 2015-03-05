@@ -3,6 +3,14 @@ local types = {}
 local util = require "scheme.util"
 local special_forms = require "scheme.special_forms"
 
+local err = util.err
+local ensure = util.ensure
+local expect = util.expect
+local expect_argc = util.expect_argc
+local expect_argc_min = util.expect_argc_min
+local expect_argc_max = util.expect_argc_max
+
+
 local ascii_names = {
     "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL",
     "BS",  "TAB", "LF",  "VT",  "FF",  "CR",  "SO",  "SI",
@@ -61,7 +69,7 @@ types.base_meta = {
         end,
 
         eval = function(self, env)
-            util.err(self,
+            err(self,
                 "evaluation-error",
                 "cannot evaluate value of type %s: %s",
                     self:type(),
@@ -125,7 +133,7 @@ types.ident_meta = {
                 nval = env:resolve(val:getval())
 
                 if not nval then
-                    util.err(self,
+                    err(self,
                         "not-defined-error",
                         "unresolved procedure or variable: %s",
                             val:getval())
@@ -320,13 +328,15 @@ types.list_meta = {
             elseif head:type() == "identifier" then
                 -- Next best case, we have something to look up or it's a
                 -- special form.
-                if special_forms[head:getval():lower()] then
-                    return special_forms[head:getval():lower()](head, env, tail)
+                local name_lower = head:getval():lower()
+
+                if special_forms[name_lower] then
+                    return special_forms[name_lower](head, env, tail)
                 end
 
                 local target = head:eval(env)
 
-                util.ensure(head, target:type() == "procedure",
+                ensure(head, target:type() == "procedure",
                     "bad-invoke-error",
                     "cannot invoke on %s of type %s",
                         target,
@@ -338,7 +348,7 @@ types.list_meta = {
                 -- Annoying case, another function call or the empty list
                 local res = head:eval(env)
 
-                util.ensure(head, res:type() == "procedure",
+                ensure(head, res:type() == "procedure",
                     "bad-invoke-error",
                     "cannot invoke on %s of type %s",
                         res,
@@ -347,7 +357,7 @@ types.list_meta = {
                 head = res
 
             else
-                util.err(head,
+                err(head,
                     "bad-invoke-error",
                     "cannot invoke on %s of type %s",
                         head,
@@ -417,11 +427,11 @@ types.proc_meta = {
                 return self.body(self, env, args)
             end
 
-            util.expect_argc_min(self, #self.params, #args)
+            expect_argc_min(self, #self.params, #args)
 
             if not self.varparam then
                 -- Not variadic, also has an upper bound
-                util.expect_argc_max(self, #self.params, #args)
+                expect_argc_max(self, #self.params, #args)
 
                 for i, arg in ipairs(args) do
                     self.env:define(self.params[i], arg)
@@ -522,9 +532,10 @@ types.err_meta = {
 function types.toscheme(val)
     if type(val) == "table" then
         local t = types.list.new{}
+        local toscheme = types.toscheme
 
         for i, v in ipairs(val) do
-            table.insert(t:getval(), types.toscheme(v))
+            table.insert(t:getval(), toscheme(v))
         end
 
         return t
@@ -545,9 +556,10 @@ end
 function types.tolua(val)
     if val:type() == "list" then
         local list = {}
+        local tolua = types.tolua
 
         for _, v in ipairs(val:getval()) do
-            table.insert(list, types.tolua(v))
+            table.insert(list, tolua(v))
         end
 
         return list
