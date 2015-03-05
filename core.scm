@@ -34,6 +34,9 @@
 (define (string . cs)
   (list->string cs))
 
+(define (list . es)
+  es)
+
 ; Math stuff
 (define (sin x) (math.sin x))
 (define (cos x) (math.cos x))

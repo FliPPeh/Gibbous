@@ -189,10 +189,6 @@ end)
 --[[
 -- List stuff
 --]]
-function builtins.list(self, env, args)
-    return list_new{table.unpack(args)}
-end
-
 function builtins.cons(self, env, args)
     expect_argc(self, 2, #args)
     expect(args[2], "list")
