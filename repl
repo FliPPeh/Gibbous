@@ -1,3 +1,4 @@
+#!/usr/bin/lua
 local env = require "scheme.env"
 
 env = env.new_environment()
