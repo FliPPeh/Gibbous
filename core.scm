@@ -1,4 +1,6 @@
 ; Functional stuff
+(define nil ())
+
 (define (map fn ls)
   (if (null? ls)
         (list)
