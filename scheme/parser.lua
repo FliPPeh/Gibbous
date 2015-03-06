@@ -242,8 +242,9 @@ function parser_meta:parse_value()
 
         expect(self, c)
 
-        return emit(self, types.list.new,
-            {types.ident.new("quote"), self:parse_value()}, dl, dc)
+        return emit(self, types.list.new, {
+            emit(self, types.ident.new, "quote", dl, dc),
+            self:parse_value()}, dl, dc)
 
     elseif c == "#" then
         local dl = self.line
