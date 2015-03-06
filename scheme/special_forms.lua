@@ -101,22 +101,68 @@ special_forms["cond"] = function(self, env, args)
     return types.list.new{}
 end
 
-local function quote(self, env, val)
+local function isdot(val)
+    return val:type() == "identifier" and val:getval() == "."
+end
+
+
+local quote
+
+local function quote_list(self, env, val, i)
     local types = require "scheme.types"
 
+    if not i then
+        -- First time looking at this list, scan to see if there isn't a period
+        -- somewhere that is not the last element of the list.
+        for j = 1, #val do
+            if isdot(val[j]) and j ~= (#val - 1) then
+                util.err(val[j],
+                    "syntax-error",
+                    "malformed pair shortcut form, \".\" must be second " ..
+                    "item in list")
+            end
+        end
+
+        i = 1
+    end
+
+    if (#val - i + 1) >= 3 and isdot(val[#val - 1]) then
+        -- (x... . y) -> Pair
+        local head = quote(self, env, val[i])
+        local tail
+
+        if (#val - i + 1) == 3 and isdot(val[i + 1]) then
+            -- (x . y) -> complete pair with nothing following, evaluate tail
+            tail = quote(self, env, val[i + 2])
+        else
+            -- (x...  . y) -> grab head and keep evaluating.
+            tail = quote_list(self, env, val, i + 1)
+        end
+
+
+        if tail:type() == "list" then
+            -- Tail evaluated to list, collapse the whole thing down to a list
+            return types.list.new{head, table.unpack(tail:getval())}
+        else
+            return types.pair.new(head, tail)
+        end
+    else
+        for j = i, #val do
+            val[j] = quote(self, env, val[j])
+        end
+
+        return types.list.new{table.unpack(val, i)}
+    end
+end
+
+quote = function(self, env, val)
     if val:type() == "identifier" then
         local v = env:intern(val:getval())
         v:setpos(val:getpos())
 
         return v
     elseif val:type() == "list" then
-        for i, eval in ipairs(val:getval()) do
-            val:getval()[i] = quote(self, env, eval)
-        end
-
-        return types.list.new{
-            table.unpack(val:getval())
-        }
+        return quote_list(self, env, val:getval())
     else
         return val
     end

@@ -279,6 +279,39 @@ types.boolean_meta = {
 }
 
 
+types.pair = {
+    new = function(a, b)
+        return setmetatable({
+            v = {a, b}
+        }, types.pair_meta)
+    end
+}
+
+types.pair_meta = {
+    __tostring = function(self)
+        local v2s = tostring(self.v[2])
+
+        if self.v[2]:type() == "pair" then
+            v2s = v2s:sub(2, #v2s - 1)
+            return ("(%s %s)"):format(self.v[1], v2s)
+        else
+            return ("(%s . %s)"):format(self.v[1], v2s)
+        end
+
+    end,
+
+    __index = setmetatable({
+        type = function(self)
+            return "pair"
+        end,
+
+        eval = function(self, env)
+            return self
+        end
+    }, types.base_meta)
+}
+
+
 types.list = {
     new = function(list)
         if not list or #list == 0 then
