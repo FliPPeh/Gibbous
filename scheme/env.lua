@@ -31,26 +31,6 @@ local function string_split(str, sep)
     return parts
 end
 
-local env_meta
-
-function env.new_environment(lua_env)
-    local builtins = require "scheme.builtins"
-    local self = setmetatable({
-        env = {},
-        name = "root",
-        lua_env = lua_env or _G,
-        parser = parser.new(),
-        root = true,
-        symbols = {}
-    }, env_meta)
-
-    for name, fn in pairs(builtins) do
-        self:define(name, types.proc.new_builtin(name, fn))
-    end
-
-    return self
-end
-
 local function make_lua_wrapper(name, wrapped_function)
     return function(self, env, args)
         for i = 1, #args do
@@ -86,17 +66,36 @@ local function make_lua_wrapper(name, wrapped_function)
     end
 end
 
+
+local env_meta
+
+function env.new_environment(lua_env)
+    local builtins = require "scheme.builtins"
+    local self = setmetatable({
+        env = {},
+        name = "root",
+        lua_env = lua_env or _G,
+        parser = parser.new(),
+        root = true,
+        symbols = {},
+    }, env_meta)
+
+    for name, fn in pairs(builtins) do
+        self:define(name, types.proc.new_builtin(name, fn))
+    end
+
+    return self
+end
+
 env_meta = {
     __index = {
         derive = function(self, name)
             return setmetatable({
                 env = setmetatable({}, {__index = self.env}),
                 name = name,
-                lua_env = self.lua_env,
                 root = false,
-                symbols = self.symbols
 
-            }, env_meta)
+            }, { __index = self})
         end,
 
         eval = function(self, chunk)
