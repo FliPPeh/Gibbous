@@ -276,9 +276,7 @@ function parser_meta:parse_value()
 
                 if char == "x" then
                     -- Hex insert? Maybe not done here.
-                    local la = self.input:sub(self.pos + 1, self.pos + 2)
-
-                    expect(self, char)
+                    local la = self.input:sub(self.pos, self.pos + 1)
 
                     if la:find("%x%x") then
                         expect(self, la:sub(1, 1))
