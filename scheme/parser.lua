@@ -313,6 +313,11 @@ function parser_methods:parse_string(c)
         c = self:get_char()
     end
 
+    if c ~= "\"" then
+        -- Hit EOF
+        self:err("expected end of string, found <eof> instead")
+    end
+
     self:advance()
 
     return self:emit(types.str.new, buf, dl, dc)
