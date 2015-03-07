@@ -1,350 +1,373 @@
 local parser = {}
-local parser_meta = {}
+local parser_methods = {}
+
+local stringparser_methods = setmetatable({}, { __index = parser_methods })
+local fileparser_methods = setmetatable({}, { __index = parser_methods })
 
 local types = require "scheme.types"
 
 
-function parser.new(file)
-    return setmetatable({
-        input = "",
-        pos   = 1,
-        line  = 1,
-        col   = 1,
-        file  = file or "input"
-    }, {
-        __index = parser_meta,
+local function parser_new(source)
+    return {
+        source = source,
+        line = 1,
+        col = 1
+    }
+end
 
-        __tostring = function(self)
-            return "parser"
-        end
+--[[
+-- String parser methods
+--]]
+function parser.new_from_string(str)
+    local self = parser_new("<string>")
+
+    self.input = str or ""
+    self.pos = 1
+
+    return setmetatable(self, {
+        __index = stringparser_methods
     })
 end
 
-
-function parser_meta:is_eof()
-    return self.pos > #self.input
-end
-
-function parser_meta:advance(n)
-    for i = 0, n - 1 do
-        if self.input:sub(self.pos + i, self.pos + i) == "\n" then
-            self.line = self.line + 1
-            self.col  = 1
-        else
-            self.col = self.col + 1
-        end
-    end
-
-    self.pos = self.pos + n
-end
-
-local function is_valid_ident(c)
-    return not c:find("[%s%(%)%#%[%]%'%;]")
-end
-
-local function is_valid_ident_start(c)
-    -- return not c:find("[%s%(%)%#%[%]%'%.]")
-    return is_valid_ident(c)
-end
-
-
-local function is_number(str)
-    return tonumber(str) ~= nil
-end
-
-function parser_meta:err(fmt, ...)
-    error(types.err.new("parse-error", {
-        file = self.file,
-        line = self.line,
-        col  = self.col
-    }, fmt:format(...)), 0)
-end
-
-function parser_meta:expect(c)
-    if self:is_eof() then
-        self:err("expected %q, found <eof>", c)
-    elseif self:getc() == c then
-        self:advance(1)
-    else
-        self:err("invalid character %q (expected %q)", self:getc(), c)
-    end
-end
-
-function parser_meta:skip_whitespace()
-    local i, j = self.input:sub(self.pos):find('^%s+')
-
-    if i and j then
-        self:advance(j)
-    end
-end
-
-function parser_meta:skip_to_next_line()
-    while not self:is_eof() and self:getc() ~= "\n" do
-        self:advance(1)
-    end
-end
-
-function parser_meta:getc()
+function stringparser_methods:get_char()
     return self.input:sub(self.pos, self.pos)
 end
 
-function parser_meta:emit(ctor, val, defline, defcol)
-    local v = ctor(val)
-    v:setpos(self.file, defline, defcol)
+function stringparser_methods:advance()
+    self:update_linecol()
+
+    self.pos = self.pos + 1
+end
+
+function stringparser_methods:feed(chunk)
+    self.input = self.input .. chunk
+end
+
+--[[
+-- File parser methods
+--]]
+function parser.new_from_file(f)
+    local self = parser_new(f)
+
+    self.file = io.open(f, "r")
+    self.bufsiz = 4096
+    self.buf = self.file:read(self.bufsiz)
+    self.bufpos = 1
+
+    return setmetatable(self, {
+        __index = fileparser_methods
+    })
+end
+
+function fileparser_methods:get_char()
+    return self.buf:sub(self.bufpos, self.bufpos)
+end
+
+function fileparser_methods:advance()
+    self:update_linecol()
+
+    self.bufpos = self.bufpos + 1
+    if self.bufpos > #self.buf then
+        self.buf = self.file:read(self.bufsiz) or ""
+        self.bufpos = 1
+    end
+end
+
+--[[
+-- Generic methods
+--]]
+function parser_methods:update_linecol()
+    if self:get_char() == "\n" then
+        self.line = self.line + 1
+        self.col  = 1
+    else
+        self.col = self.col + 1
+    end
+end
+
+function parser_methods:err(fmt, ...)
+    error(types.err.new("parse-error", {
+        file = self.source,
+        line = self.line,
+        col  = self.col
+    }, fmt:format(...)))
+end
+
+function parser_methods:emit(fn, v, dl, dc)
+    local v = fn(v)
+
+    v:setpos(self.source, dl, dc)
 
     return v
 end
 
-function parser_meta:parse_list()
-    local list = {}
+function parser_methods:trim(c)
+    c = c or self:get_char()
 
-    local getc = self.getc
-    local is_eof = self.is_eof
-    local expect = self.expect
-    local skip_whitespace = self.skip_whitespace
-    local parse_value = self.parse_value
+    while c and c:find("^%s") do
+        self:advance()
 
-    expect(self, "(")
-    skip_whitespace(self)
-
-    while not is_eof(self) and getc(self) ~= ")" do
-        table.insert(list, parse_value(self))
-
-        skip_whitespace(self)
+        c = self:get_char()
     end
 
-    expect(self, ")")
+    return c
+end
+
+function parser_methods:parse()
+    local list = {}
+
+    while true do
+        local res = self:parse_value()
+
+        if res then
+            table.insert(list, res)
+        else
+            break
+        end
+    end
 
     return list
 end
 
-function parser_meta:parse_ident()
-    local buf = ""
-
-    local getc = self.getc
-    local is_eof = self.is_eof
-    local expect = self.expect
-
-    local c = getc(self)
-
-    while not is_eof(self) and is_valid_ident(c) do
-        buf = buf .. c
-
-        expect(self, c)
+function parser_methods:parse_value(c)
+    if not c or c:find("^%s") then
+        c = self:trim()
     end
 
-    if is_number(buf) then
-        return tonumber(buf)
+    if not c or c == "" then
+        return nil
+    end
+
+    if c == ";" then
+        self:advance()
+
+        c = self:get_char()
+        while c ~= "\n" and c ~= "" do
+            self:advance()
+
+            c = self:get_char()
+        end
+
+        if c ~= "" then
+            return self:parse_value(c)
+        end
+
+    elseif c == "(" then
+        -- list
+        return self:parse_list()
+
+    elseif c == "#" then
+        -- boolean, character
+        return self:parse_bool_or_char()
+
+    elseif c == "\"" then
+        -- string
+        return self:parse_string()
+
+    elseif not c:find("[%d%s%(%)%#%[%]%'%;]") then
+        -- identifier
+        return self:parse_identifier(c)
+
+    elseif c:find("[%+%-%d%.]") then
+        return self:parse_number(c)
+
+    elseif c == "'" then
+        local dl, dc = self.line, self.col
+
+        self:advance()
+
+        return self:emit(types.list.new, {
+            self:emit(types.ident.new, "quote", dl, dc),
+            self:parse_value()}, dl, dc)
     else
-        return buf
+        self:err("unexpected character: %q", c)
     end
 end
 
-function parser_meta:parse_string()
+function parser_methods:parse_list()
+    local dl, dc = self.line, self.col
+
+    -- Skip past "("
+    self:advance()
+
+    local list = {}
+    local c
+
+    while true do
+        c = self:trim()
+
+        if c == ")" or c == "" then
+            break
+        else
+            table.insert(list, self:parse_value(c))
+        end
+    end
+
+    if c ~= ")" then
+        -- Hit EOF
+        self:err("expected \")\", found <eof> instead")
+    end
+
+    self:advance()
+
+    return self:emit(types.list.new, list, dl, dc)
+end
+
+function parser_methods:parse_bool_or_char()
+    local dl, dc = self.line, self.col
+
+    self:advance()
+
+    local c = self:get_char()
+
+    if c == "t" or c == "T" then
+        self:advance()
+
+        return self:emit(types.boolean.new, true, dl, dc)
+
+    elseif c == "f" or c == "F" then
+        self:advance()
+
+        return self:emit(types.boolean.new, false, dl, dc)
+
+    elseif c == "\\" then
+        self:advance()
+
+        c = self:get_char()
+
+        if c == "" then
+            self:err("expected character, found <eof>")
+        end
+
+        if not c:find("%s") and not c:find("%w") then
+            self:advance()
+
+            return self:emit(types.char.new, c, dl, dc)
+        else
+            local buf = c
+
+            self:advance()
+
+            while true do
+                c = self:get_char()
+
+                if not c:find("%a") and not c:find("%x") then
+                    break
+                else
+                    buf = buf .. c
+
+                    self:advance()
+                end
+            end
+
+            if #buf == 1 then
+                return self:emit(types.char.new, buf, dl, dc)
+            elseif #buf > 1 then
+                if buf:find("x%x%x") then
+                    return self:emit(
+                        types.char.new,
+                        string.char(tonumber(buf:sub(2), 16)),
+                        dl,
+                        dc)
+                else
+                    local res = types.charnames[buf]
+
+                    if not res then
+                        self:err("unknown character code: %s", buf)
+                    end
+
+                    return self:emit(types.char.new, res, dl, dc)
+                end
+            end
+        end
+    end
+end
+
+function parser_methods:parse_string(c)
     local buf = ""
 
-    local getc = self.getc
-    local is_eof = self.is_eof
-    local expect = self.expect
+    local dl, dc = self.line, self.col
 
-    expect(self, "\"")
+    self:advance()
 
-    while not is_eof(self) and getc(self) ~= "\"" do
-        local c = getc(self)
+    c = self:get_char()
 
+    while c ~= "\"" and c ~= "" do
         if c == "\\" then
-            expect(self, "\\")
+            self:advance()
 
-            local esc = {
-                ["\""] = "\"", t = "\t", n = "\n", r = "\r"
-            }
-
-            local c = getc(self)
+            local esc = { ["\""] = "\"", t = "\t", n = "\n", r = "\r" }
+            c = self:get_char()
 
             if esc[c] then
                 buf = buf .. esc[c]
-                expect(self, c)
+                self:advance()
             else
                 self:err("invalid escape sequence \"%s\"", "\\" .. c)
             end
         else
             buf = buf .. c
-
-            expect(self, c)
+            self:advance()
         end
 
+        c = self:get_char()
     end
 
-    expect(self, "\"")
+    self:advance()
 
-    return buf
+    return self:emit(types.str.new, buf, dl, dc)
 end
 
+function parser_methods:parse_identifier(c)
+    local buf = c
 
-function parser_meta:parse_value()
-    self:skip_whitespace()
+    local dl, dc = self.line, self.col
 
-    -- Save a few functions as locals to save a few lookups
-    local getc = self.getc
-    local emit = self.emit
-    local is_eof = self.is_eof
-    local expect = self.expect
+    self:advance()
 
-    local c = getc(self)
+    while true do
+        c = self:get_char()
 
-    if c == "(" then
-        local dl = self.line
-        local dc = self.col
-
-        return emit(self, types.list.new, self:parse_list(), dl, dc)
-
-    elseif c == ";" then
-        self:skip_to_next_line()
-
-        if not is_eof(self) then
-            return self:parse_value()
-        end
-
-    elseif c == "\"" then
-        local dl = self.line
-        local dc = self.col
-
-        return emit(self, types.str.new, self:parse_string(), dl, dc)
-
-    --[[
-    elseif c == "." then
-        local dl = self.line
-        local dc = self.col
-
-        expect(self, ".")
-        return emit(self, types.mkident, ".", dl, dl)
-    --]]
-    elseif is_valid_ident_start(c) then
-        local ident = ""
-        local dl = self.line
-        local dc = self.col
-
-        while not is_eof(self) and is_valid_ident(getc(self)) do
-            ident = ident .. getc(self)
-
-            expect(self, getc(self))
-        end
-
-        if is_number(ident) then
-            return emit(self, types.number.new, tonumber(ident), dl, dc)
+        if not c:find("[%w%_%-%?%!%/%%%<%>%=]") then
+            break
         else
-            return emit(self, types.ident.new, ident, dl, dc)
+            buf = buf .. c
+
+            self:advance()
         end
+    end
 
-    elseif c == "'" then
-        local dl = self.line
-        local dc = self.col
+    return self:emit(types.ident.new, buf, dl, dc)
+end
 
-        expect(self, c)
+function parser_methods:parse_number(n)
+    local buf = n
 
-        return emit(self, types.list.new, {
-            emit(self, types.ident.new, "quote", dl, dc),
-            self:parse_value()}, dl, dc)
+    local dl, dc = self.line, self.col
 
-    elseif c == "#" then
-        local dl = self.line
-        local dc = self.col
+    self:advance()
 
-        expect(self, c)
+    while true do
+        c = self:get_char()
 
-        local c = getc(self)
-
-        if c == "t" or c == "T" then
-            expect(self, c)
-
-            return emit(self, types.boolean.new, true, dl, dc)
-        elseif c == "f" or c == "F" then
-            expect(self, c)
-
-            return emit(self, types.boolean.new, false, dl, dc)
-        elseif c == "\\" then
-            expect(self, c)
-
-            local char = getc(self)
-            if not char:find("%s") and not char:find("%w") then
-                -- Not alphanumeric, done here
-                expect(self, char)
-
-                return emit(self, types.char.new, char, dl, dc)
-            else
-                expect(self, char)
-
-                if char == "x" then
-                    -- Hex insert? Maybe not done here.
-                    local la = self.input:sub(self.pos, self.pos + 1)
-
-                    if la:find("%x%x") then
-                        expect(self, la:sub(1, 1))
-                        expect(self, la:sub(2, 2))
-
-                        return emit(self, types.char.new,
-                            string.char(tonumber(la, 16)), dl, dc)
-                    else
-                        return emit(self, types.char.new, char, dl, dc)
-                    end
-                else
-                    local buf = char
-                    local c = getc(self)
-
-                    while not is_eof(self) and c:find('%w') do
-                        buf = buf .. c
-
-                        expect(self, c)
-
-                        c = getc(self)
-                    end
-
-                    if #buf > 1 then
-                        if not types.charnames[buf] then
-                            self.col = self.col - #buf
-                            self:err("unknown character name: %s", buf)
-                        else
-                            return emit(self, types.char.new,
-                                types.charnames[buf], dl, dc)
-                        end
-                    else
-                        return emit(self, types.char.new, buf, dl, dc)
-                    end
-                end
-            end
-
+        if not c:find("[%.%deE]") then
+            break
         else
-            self:err("unexpected token %q following \"#\"", c)
+            buf = buf .. c
+
+            self:advance()
         end
+    end
+
+    local num = tonumber(buf)
+
+    if not num then
+        self.line, self.col = dl, dc
+
+        self:err("invalid number: %s", buf)
     else
-        self:err("unexpected token %q", getc(self))
+        return self:emit(types.number.new, num, dl, dc)
     end
-end
-
-function parser_meta:feed(input)
-    self.input = self.input .. input
-end
-
-function parser_meta:parse(input)
-    local ast = {}
-
-    if input then
-        self:feed(input)
-    end
-
-    self:skip_whitespace()
-
-    while not self:is_eof() do
-        local val = self:parse_value()
-
-        if val then
-            table.insert(ast, val)
-        end
-
-        self:skip_whitespace()
-    end
-
-    return ast
 end
 
 return parser

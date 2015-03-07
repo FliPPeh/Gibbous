@@ -75,7 +75,7 @@ function env.new_environment(lua_env)
         env = {},
         name = "root",
         lua_env = lua_env or _G,
-        parser = parser.new(),
+        parser = parser.new_from_string(),
         root = true,
         symbols = {},
     }, env_meta)
@@ -99,15 +99,17 @@ env_meta = {
         end,
 
         eval = function(self, chunk)
-            local ast = self.parser:parse(chunk)
+            self.parser:feed(chunk)
+
+            local ast = self.parser:parse()
             return self:eval_ast(ast)
         end,
 
         eval_file = function(self, file)
             -- Use a dedicated parser each file
-            local parser = parser.new(file)
+            local parser = parser.new_from_file(file)
 
-            return self:eval_ast(parser:parse(io.open(file, "r"):read("*a")))
+            return self:eval_ast(parser:parse())
         end,
 
         eval_ast = function(self, ast)
