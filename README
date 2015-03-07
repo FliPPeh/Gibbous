@@ -33,5 +33,8 @@ Not implemented yet but planned:
  * Lua interoperability
    - Working with tables, methods, ...
 
+Not implemented:
+ * call/cc
+
 May work:
  * Proper tail calls
