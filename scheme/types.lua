@@ -435,6 +435,46 @@ types.proc = {
             varparam = nil,
             builtin  = true
         }, types.proc_meta)
+    end,
+
+    wrap_native = function(name, wrapped_function)
+        local function wrapper(self, env, args)
+            for i = 1, #args do
+                args[i] = types.tolua(args[i], env)
+            end
+
+            local res = {xpcall(function()
+                return wrapped_function(table.unpack(args))
+
+            end, function(err)
+                local f, l, c = self:getpos()
+                local location = { file = f, line = l, col  = c }
+
+                return types.err.new("lua-error", location,
+                    ("in Lua function %s: %s"):format(name, err))
+            end)}
+
+            if res[1] then
+                if #res > 2 then
+                    return types.toscheme({table.unpack(res, 2)})
+                else
+                    return types.toscheme(res[2])
+                end
+            else
+                error(res[2])
+            end
+        end
+
+        return setmetatable({
+            name   = name,
+            env    = nil,
+            params = nil,
+            body   = wrapper,
+
+            varparam = nil,
+            builtin  = true,
+            wraps    = wrapped_function
+        }, types.proc_meta)
     end
 }
 

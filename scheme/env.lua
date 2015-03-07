@@ -31,41 +31,6 @@ local function string_split(str, sep)
     return parts
 end
 
-local function make_lua_wrapper(env, name, wrapped_function)
-    return function(self, env, args)
-        for i = 1, #args do
-            args[i] = types.tolua(args[i], env)
-        end
-
-        local res = {xpcall(function()
-            return wrapped_function(table.unpack(args))
-
-        end, function(err)
-            local f, l, c = self:getpos()
-            local location = {
-                file = f,
-                line = l,
-                col  = c
-            }
-
-            return types.err.new("lua-error", location,
-                ("in Lua function %s: %s"):format(name, err))
-        end)}
-
-        if res[1] then
-            if #res > 2 then
-                return types.toscheme({
-                    table.unpack(res, 2)
-                })
-            else
-                return types.toscheme(res[2])
-            end
-        else
-            error(res[2])
-        end
-    end
-end
-
 
 local env_meta
 
@@ -178,10 +143,7 @@ env_meta = {
 
                 if lv then
                     if type(lv) == "function" then
-                        local v = types.proc.new_builtin(var,
-                            make_lua_wrapper(self, var, lv))
-
-                        v.wraps = lv
+                        local v = types.proc.wrap_native(var, lv)
 
                         self:define(var, v)
                         return v
