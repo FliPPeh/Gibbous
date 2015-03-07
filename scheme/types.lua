@@ -375,6 +375,7 @@ types.list_meta = {
                         target,
                         target:type())
 
+                target:setevalpos(head:getpos())
                 head = target
 
             elseif head:type() == "list" then
@@ -387,6 +388,7 @@ types.list_meta = {
                         res,
                         res:type())
 
+                target:setevalpos(head:getpos())
                 head = res
 
             else
