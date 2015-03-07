@@ -48,17 +48,59 @@ builtins["open-output-file"] = function(self, env, args)
 end
 
 
-function builtins.display(self, env, args)
-    for i, arg in ipairs(args) do
-        if arg:type() == "string" or arg:type() == "char" then
-            io.write(arg:getval())
-        else
-            io.write(tostring(arg))
+local function repr_display(arg)
+    if arg:type() == "symbol" or
+       arg:type() == "string" or
+       arg:type() == "number" or
+       arg:type() == "char" then
+
+       return arg:getval()
+
+    elseif arg:type() == "list" then
+        local parts = {}
+
+        for i, v in ipairs(arg:getval()) do
+            table.insert(parts, repr_display(v))
         end
+
+        return "(" .. table.concat(parts, " ") .. ")"
+    elseif arg:type() == "pair" then
+        local v2s = repr_display(arg:getval()[2])
+
+        if arg:getval()[2]:type() == "pair" then
+            v2s = v2s:sub(2, #v2s - 1)
+            return ("(%s %s)"):format(repr_display(arg:getval()[1]), v2s)
+        else
+            return ("(%s . %s)"):format(repr_display(arg:getval()[1]), v2s)
+        end
+    else
+        return tostring(arg)
+    end
+end
+
+
+function builtins.display(self, env, args)
+    expect_argc(self, 1, #args)
+
+    io.write(repr_display(args[1]))
+
+    return list_new{}
+end
+
+function builtins.write(self, env, args)
+    expect_argc(self, 1, #args)
+
+    if args[1]:type() == "list" or
+       args[1]:type() == "pair" or
+       args[1]:type() == "symbol" then
+        io.write("'" .. tostring(args[1]))
+    else
+        io.write(tostring(args[1]))
     end
 
     return list_new{}
 end
+
 
 builtins["read-line"] = function(self, env, args)
     expect_argc_max(self, 1, #args)
