@@ -328,12 +328,12 @@ function parser_methods:parse_identifier(c)
     while true do
         c = self:get_char()
 
-        if not c:find("[%w%_%-%?%!%/%%%<%>%=]") then
-            break
-        else
+        if not c:find("[%s%(%)%#%[%]%'%;]") then
             buf = buf .. c
 
             self:advance()
+        else
+            break
         end
     end
 
