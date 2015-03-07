@@ -31,10 +31,10 @@ local function string_split(str, sep)
     return parts
 end
 
-local function make_lua_wrapper(name, wrapped_function)
+local function make_lua_wrapper(env, name, wrapped_function)
     return function(self, env, args)
         for i = 1, #args do
-            args[i] = types.tolua(args[i])
+            args[i] = types.tolua(args[i], env)
         end
 
         local res = {xpcall(function()
@@ -179,7 +179,9 @@ env_meta = {
                 if lv then
                     if type(lv) == "function" then
                         local v = types.proc.new_builtin(var,
-                            make_lua_wrapper(var, lv))
+                            make_lua_wrapper(self, var, lv))
+
+                        v.wraps = lv
 
                         self:define(var, v)
                         return v

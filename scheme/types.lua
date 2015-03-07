@@ -588,16 +588,30 @@ function types.toscheme(val)
     end
 end
 
-function types.tolua(val)
+function types.tolua(val, env)
     if val:type() == "list" then
         local list = {}
         local tolua = types.tolua
 
         for _, v in ipairs(val:getval()) do
-            table.insert(list, tolua(v))
+            table.insert(list, tolua(v, env))
         end
 
         return list
+    elseif val:type() == "procedure" then
+        return function(...)
+            if val.wraps then
+                return val.wraps(...)
+            else
+                local args = {...}
+
+                for i, v in ipairs(args) do
+                    args[i] = types.toscheme(v, env)
+                end
+
+                return types.tolua(val:call(env, {table.unpack(args)}), env)
+            end
+        end
     else
         return val:getval()
     end
