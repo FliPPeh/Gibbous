@@ -4,6 +4,8 @@ function util.err(subj, t, fmt, ...)
     local types = require "scheme.types"
     local file, line, col = subj:getpos()
 
+    local msg = (type(fmt) == "string" and fmt:format(...)) or fmt
+
     if file and line and col then
         local position = {
             file = file,
@@ -12,10 +14,10 @@ function util.err(subj, t, fmt, ...)
         }
 
         -- error(("%s:%d:%d: "):format(file, line, col) .. fmt:format(...), 0)
-        error(types.err.new(t, position, fmt:format(...)), 0)
+        error(types.err.new(t, position, msg), 0)
     else
         -- error("?:?:?: " .. fmt:format(...), 0)
-        error(types.err.new(t, nil, fmt:format(...)), 0)
+        error(types.err.new(t, nil, msg), 0)
     end
 end
 
