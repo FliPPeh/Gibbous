@@ -533,7 +533,16 @@ types.err = {
 
 types.err_meta = {
     __tostring = function(self)
-        return ("#<%s: %s>"):format(self.errtype, self.errmsg)
+        if self.errpos then
+            return ("#<%s: %s:%d:%d: %s>"):format(
+                self.errtype,
+                self.errpos.file,
+                self.errpos.line,
+                self.errpos.col,
+                self.errmsg)
+        else
+            return ("#<%s: %s>"):format(self.errtype, self.errmsg)
+        end
     end,
 
     __index = setmetatable({
