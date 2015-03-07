@@ -1,6 +1,7 @@
-; Functional stuff
+; Basic stuff
 (define nil ())
 
+; Functional stuff
 (define (map fn ls)
   (if (null? ls)
         (list)
@@ -27,6 +28,12 @@
         (fn x))
     (list)
     ls))
+
+; Embarassing stuff
+(define (call/cc f)
+  (raise "call/cc not implemented"))
+
+(define call-with-current-continuation call/cc)
 
 ; I/O stuff
 (define (newline)
