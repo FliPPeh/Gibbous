@@ -538,14 +538,30 @@ types.port = {
             path = path,
             mode = mode
         }, types.port_meta)
+    end,
+
+    wrap_native = function(fileobj)
+        return setmetatable({
+            v = fileobj,
+            path = "<unknown path>",
+            mode = "?"
+        }, types.port_meta)
     end
 }
 
 types.port_meta = {
     __tostring = function(self)
-        return ("#<%s-file %q>"):format(
-            self.mode == "r" and "input" or "output",
-            self.path)
+        local mode
+
+        if self.mode == "r" then
+            mode = "input-"
+        elseif self.mode == "w" then
+            mode = "output-"
+        else
+            mode = "native-"
+        end
+
+        return ("#<%sfile %q>"):format(mode, self.path)
     end,
 
     __index = setmetatable({
@@ -613,8 +629,61 @@ types.err_meta = {
     }, types.err_meta)
 }
 
+
+-- Slightly derived from: https://stackoverflow.com/a/7528301/280656
+local function is_array(tab)
+    if type(tab) ~= "table" then
+        return false
+    end
+
+    local count = 0
+
+    for k, v in pairs(tab) do
+        if type(k) ~= "number" then
+            return false
+        else
+            count = count + 1
+        end
+    end
+
+    for i = 1, count do
+        if not tab[i] and type(tab[i]) ~= "nil" then
+            return false
+        end
+    end
+
+    return true
+end
+
 function types.toscheme(val)
+    -- Might be a scheme value we're receiving from Lua, due to bidirectional
+    -- interop -> check metatables
+    local valmt = getmetatable(val)
+
+    if valmt then
+        if valmt == types.symbol_meta or
+           valmt == types.ident_meta or
+           valmt == types.str_meta or
+           valmt == types.number_meta or
+           valmt == types.char_meta or
+           valmt == types.boolean_meta or
+           valmt == types.pair_meta or
+           valmt == types.list_meta or
+           valmt == types.proc_meta or
+           valmt == types.port_meta or
+           valmt == types.err_meta then
+
+            return val
+        end
+    end
+
     if type(val) == "table" then
+        -- Can be an array or a map. We don't support maps yet, so we'll treat
+        -- it as a list.
+        if not is_array(val) then
+            error(("cannot only convert Lua array tables"), 1)
+        end
+
         local t = {}
         local toscheme = types.toscheme
 
@@ -631,6 +700,10 @@ function types.toscheme(val)
         return types.boolean.new(val)
     elseif type(val) == "nil" then
         return types.list.new{}
+    elseif type(val) == "userdata" and io.type(val) == "file" then
+        return types.port.wrap_native(val)
+    elseif type(val) == "function" then
+        return types.proc.wrap_native("?", val)
     else
         error(("cannot convert value of type %s to scheme value: %s"):format(
             type(val), val), 2)
@@ -638,7 +711,8 @@ function types.toscheme(val)
 end
 
 function types.tolua(val, env)
-    if val:type() == "list" then
+    if val:type() == "list" or val:type() == "pair" then
+        -- Not much of a distinction between pairs and lists in Lua land
         local list = {}
         local tolua = types.tolua
 
@@ -648,8 +722,13 @@ function types.tolua(val, env)
 
         return list
     elseif val:type() == "procedure" then
+        -- We can wrap procedures inside a helper closure that converts the
+        -- parameters and return values, the same way we can wrap a Lua function
+        -- for Scheme.
         return function(...)
             if val.wraps then
+                -- We know this function just wraps a Lua function, so we can
+                -- call it directly and avoid all the overhead of translating.
                 return val.wraps(...)
             else
                 local args = {...}
@@ -661,8 +740,22 @@ function types.tolua(val, env)
                 return types.tolua(val:call(env, {table.unpack(args)}), env)
             end
         end
+
+    elseif val:type() == "error" then
+        return tostring(val)
+
     else
-        return val:getval()
+        -- Try getting a primitive (symbol, ident, str, number, char, bool) or
+        -- the file object from a port.
+        local v = val:getval()
+
+        if not v then
+            util.err(val, "cannot convert value of type %s to Lua value: %s",
+                val:type(),
+                val)
+        end
+
+        return v
     end
 end
 
