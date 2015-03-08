@@ -388,7 +388,7 @@ types.list_meta = {
                         res,
                         res:type())
 
-                target:setevalpos(head:getpos())
+                res:setevalpos(head:getpos())
                 head = res
 
             else
