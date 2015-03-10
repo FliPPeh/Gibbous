@@ -281,26 +281,28 @@ types.boolean_meta = {
 
 types.pair = {
     new = function(a, b)
-        return setmetatable({
-            v = {a, b}
-        }, types.pair_meta)
+        return setmetatable({a, b}, types.pair_meta)
     end
 }
 
 types.pair_meta = {
     __tostring = function(self)
-        local v2s = tostring(self.v[2])
+        local v2s = tostring(self[2])
 
-        if self.v[2]:type() == "pair" then
+        if self[2]:type() == "pair" then
             v2s = v2s:sub(2, #v2s - 1)
-            return ("(%s %s)"):format(self.v[1], v2s)
+            return ("(%s %s)"):format(self[1], v2s)
         else
-            return ("(%s . %s)"):format(self.v[1], v2s)
+            return ("(%s . %s)"):format(self[1], v2s)
         end
 
     end,
 
     __index = setmetatable({
+        getval = function(self)
+            return self
+        end,
+
         type = function(self)
             return "pair"
         end,
@@ -316,14 +318,12 @@ types.list = {
     new = function(list)
         if not list or #list == 0 then
             if not types.list.empty_list then
-                types.list.empty_list = setmetatable({v = {}}, types.list_meta)
+                types.list.empty_list = setmetatable({}, types.list_meta)
             end
 
             return types.list.empty_list
         else
-            return setmetatable({
-                v = list
-            }, types.list_meta)
+            return setmetatable(list, types.list_meta)
         end
     end
 }
@@ -332,7 +332,7 @@ types.list_meta = {
     __tostring = function(self)
         local ss = {}
 
-        for _, v in ipairs(self.v) do
+        for _, v in ipairs(self) do
             table.insert(ss, tostring(v))
         end
 
@@ -340,20 +340,24 @@ types.list_meta = {
     end,
 
     __index = setmetatable({
+        getval = function(self)
+            return self
+        end,
+
         type = function(self)
             return "list"
         end,
 
         eval = function(self, env)
             -- Evaluating a list is always a function call.
-            local head = self.v[1]
+            local head = self[1]
 
             -- Empty list evaluates to itself
             if not head then
                 return self
             end
 
-            local tail = {table.unpack(self.v, 2)}
+            local tail = {table.unpack(self, 2)}
 
             -- Look at head to find out what we need to do.
             if head:type() == "procedure" then
