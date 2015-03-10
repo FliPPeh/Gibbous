@@ -147,11 +147,20 @@ builtins["eval"] = function(self, env, args)
 end
 
 builtins["apply"] = function(self, env, args)
-    expect_argc(self, 2, #args)
+    expect_argc_min(self, 1, #args)
     expect(args[1], "procedure")
-    expect(args[2], "list")
 
-    return args[1]:call(env, args[2]:getval())
+    local fargs = {}
+
+    for i = 2, #args do
+        expect(args[i], "list")
+
+        for j = 1, #args[i] do
+            table.insert(fargs, args[i][j])
+        end
+    end
+
+    return args[1]:call(env, fargs)
 end
 
 builtins["raise"] = function(self, env, args)
