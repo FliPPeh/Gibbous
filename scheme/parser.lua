@@ -337,7 +337,11 @@ function parser_methods:parse_identifier(c)
         end
     end
 
-    return self:emit(types.ident.new, buf, dl, dc)
+    if tonumber(buf) ~= nil then
+        return self:emit(types.number.new, tonumber(buf), dl, dc)
+    else
+        return self:emit(types.ident.new, buf, dl, dc)
+    end
 end
 
 function parser_methods:parse_number(n)
