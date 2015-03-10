@@ -4,9 +4,18 @@
 ; Functional stuff
 (define (map fn ls)
   (if (null? ls)
-        (list)
+        ()
         (cons (fn (car ls))
               (map fn (cdr ls)))))
+
+(define (filter fn ls)
+   (if (null? ls)
+         ()
+         (let ((x  (car ls))
+               (xs (cdr ls)))
+             (if (fn x)
+                 (cons x (filter fn xs))
+                 (filter fn xs)))))
 
 (define (fold-left fn acc ls)
   (if (null? ls)
@@ -26,7 +35,7 @@
   (fold-left
     (lambda (acc x)
         (fn x))
-    (list)
+    ()
     ls))
 
 ; Embarassing stuff
@@ -78,3 +87,9 @@
   (if (< x 0)
     (- x)
     x))
+
+(define (positive? x)
+  (>= x 0))
+
+(define (negative? x)
+  (not (positive? x)))
