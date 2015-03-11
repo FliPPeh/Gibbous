@@ -2,34 +2,7 @@ local env = {}
 
 local parser = require "scheme.parser"
 local types = require "scheme.types"
-
-
-local function string_split(str, sep)
-    local parts = {}
-    local l = 1
-
-    -- While there is a seperator within the string
-    while str:find(sep, l) do
-        local sep_start, sep_end = str:find(sep, l)
-
-        -- Unless the substring between the last seperators was empty, add
-        -- it to the results
-        if sep_start ~= l then
-            -- Add the part between l (last seperator end or string start) and
-            -- sep_start
-            table.insert(parts, str:sub(l, sep_start - 1))
-        end
-
-        -- put l after the seperator end
-        l = sep_end + 1
-    end
-
-    if str:len() >= l then
-        table.insert(parts, str:sub(l))
-    end
-
-    return parts
-end
+local util = require "scheme.util"
 
 
 local env_meta
@@ -157,7 +130,7 @@ env_meta = {
         end,
 
         locate_lua = function(self, name)
-            local path = string_split(name, "%.")
+            local path = util.split_string(name, "%.")
             local val
 
             if #path > 1 then

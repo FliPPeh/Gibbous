@@ -91,4 +91,35 @@ function util.is_true(val)
     end
 end
 
+function util.split_string(str, sep)
+    local parts = {}
+    local l = 1
+
+    -- While there is a seperator within the string
+    while str:find(sep, l) do
+        local sep_start, sep_end = str:find(sep, l)
+
+        -- Unless the substring between the last seperators was empty, add
+        -- it to the results
+        if sep_start ~= l then
+            -- Add the part between l (last seperator end or string start) and
+            -- sep_start
+            table.insert(parts, str:sub(l, sep_start - 1))
+        end
+
+        -- put l after the seperator end
+        l = sep_end + 1
+    end
+
+    if str:len() >= l then
+        table.insert(parts, str:sub(l))
+    end
+
+    return parts
+end
+
+function util.literal_pattern(str)
+    return str:gsub("[^%w%s]", "%%%1")
+end
+
 return util

@@ -408,7 +408,7 @@ end
 
 builtins["length"] = function(self, env, args)
     expect_argc(self, 1, #args)
-    expect(args[1], {"list", "string"})
+    expect(args[1], "list")
 
     return number_new(#args[1]:getval())
 end
@@ -420,6 +420,132 @@ builtins["null?"] = function(self, env, args)
     return bool_new(#args[1]:getval() == 0)
 end
 
+--[[
+-- String stuff
+--]]
+builtins["string-length"] = function(self, env, args)
+    expect_argc(self, 1, #args)
+    expect(args[1], "string")
+
+    return number_new(#args[1]:getval())
+end
+
+builtins["string-null?"] = function(self, env, args)
+    expect_argc(self, 1, #args)
+    expect(args[1], "string")
+
+    return bool_new(#args[1]:getval() == 0)
+end
+
+builtins["string-append"] = function(self, env, args)
+    local res = ""
+
+    for _, str in ipairs(args) do
+        expect(str, "string")
+
+        res = res .. str:getval()
+    end
+
+    return str_new(res)
+end
+
+builtins["string-join"] = function(self, env, args)
+    expect_argc_min(self, 1, #args)
+    expect_argc_max(self, 2, #args)
+
+    expect(args[1], "list")
+
+    local res = {}
+    local sep = " "
+
+    if #args == 2 then
+        expect(args[2], "string")
+
+        sep = args[2]:getval()
+    end
+
+    for _, str in ipairs(args[1]:getval()) do
+        expect(str, "string")
+
+        table.insert(res, str:getval())
+    end
+
+    return str_new(table.concat(res, sep))
+end
+
+builtins["string-split"] = function(self, env, args)
+    expect_argc_min(self, 1, #args)
+    expect(args[1], "string")
+
+    local sep = "%s"
+
+    if #args == 2 then
+        expect(args[2], "string")
+
+        sep = util.literal_pattern(args[2]:getval())
+    end
+
+    return types.toscheme(util.split_string(args[1]:getval(), sep))
+end
+
+builtins["string-trim"] = function(self, env, args)
+    expect_argc_min(self, 1, #args)
+    expect(args[1], "string")
+
+    local sep_a, sep_b = "^%s*", "%s*$"
+
+    if #args == 2 then
+        expect(args[2], "string")
+
+        sep_a = "^" .. util.literal_pattern(args[2]:getval())
+        sep_b = util.literal_pattern(args[2]:getval()) .. "$"
+    end
+
+    return str_new(args[1]:getval():gsub(sep_a, ""):gsub(sep_b, ""))
+end
+
+
+builtins["string-ref"] = function(self, env, args)
+    expect_argc(self, 2, #args)
+    expect(args[1], "string")
+    expect(args[2], "number")
+    ensure(args[2], (args[2]:getval() + 1) <= #args[1]:getval(),
+        "argument-error",
+        "string index out of bounds")
+
+    local ind = args[2]:getval() + 1
+
+    return char_new(args[1]:getval():sub(ind, ind))
+end
+
+builtins["substring"] = function(self, env, args)
+    expect_argc_min(self, 2, #args)
+    expect(args[1], "string")
+    expect(args[2], "number")
+
+    local str = args[1]:getval()
+    local sstart, send = args[2]:getval(), #str
+
+    ensure(args[2], sstart <= #str,
+        "argument-error",
+        "string index out of bounds")
+
+    if #args == 3 then
+        expect(args[3], "number")
+
+        send = args[3]:getval()
+
+        ensure(args[3], send >= sstart,
+            "argument-error",
+            "end must be greater or equal to start")
+
+        ensure(args[3], sstart <= #str,
+            "argument-error",
+            "string index out of bounds")
+    end
+
+    return str_new(str:sub(sstart + 1, send))
+end
 
 --[[
 -- Type stuff
@@ -699,13 +825,22 @@ builtins["<="] = numeric_comparison(function(a, b) return a <= b end)
 builtins[">"]  = numeric_comparison(function(a, b) return a >  b end)
 builtins[">="] = numeric_comparison(function(a, b) return a >= b end)
 
+local char_comparison = series_comparison("char")
+
+builtins["char=?"]  = char_comparison(function(a, b) return a == b end)
+builtins["char!=?"] = char_comparison(function(a, b) return a ~= b end)
+builtins["char<?"]  = char_comparison(function(a, b) return a <  b end)
+builtins["char<=?"] = char_comparison(function(a, b) return a <= b end)
+builtins["char>?"]  = char_comparison(function(a, b) return a >  b end)
+builtins["char>=?"] = char_comparison(function(a, b) return a >= b end)
+
 local string_comparison = binary_comparison("string")
 
-builtins["string="]  = string_comparison(function(a, b) return a == b end)
-builtins["string!="] = string_comparison(function(a, b) return a ~= b end)
-builtins["string<"]  = string_comparison(function(a, b) return a <  b end)
-builtins["string<="] = string_comparison(function(a, b) return a <= b end)
-builtins["string>"]  = string_comparison(function(a, b) return a >  b end)
-builtins["string>="] = string_comparison(function(a, b) return a >= b end)
+builtins["string=?"]  = string_comparison(function(a, b) return a == b end)
+builtins["string!=?"] = string_comparison(function(a, b) return a ~= b end)
+builtins["string<?"]  = string_comparison(function(a, b) return a <  b end)
+builtins["string<=?"] = string_comparison(function(a, b) return a <= b end)
+builtins["string>?"]  = string_comparison(function(a, b) return a >  b end)
+builtins["string>=?"] = string_comparison(function(a, b) return a >= b end)
 
 return builtins

@@ -57,14 +57,60 @@
     (close-output-port f)
     res))
 
-; Type stuff
+; Char stuff
+(define (char-lower-case? c)
+  (and (char>=? c #\a)
+       (char<=? c #\z)))
+
+(define (char-upper-case? c)
+  (and (char>=? c #\A)
+       (char<=? c #\Z)))
+
+(define (char-alphabetic? c)
+  (or (char-lower-case? c)
+      (char-upper-case? c)))
+
+(define (char-numeric? c)
+  (and (char>=? c #\0)
+       (char<=? c #\9)))
+
+(define (char-whitespace? c)
+  (or (char=? c #\x0A)
+      (char=? c #\x0D)
+      (char=? c #\x09)
+      (char=? c #\x20)))
+
+
+(define (char-downcase c)
+  (if (char-upper-case? c)
+    (integer->char (bit32.bor 32 (char->integer c)))
+    c))
+
+(define (char-upcase c)
+  (if (char-lower-case? c)
+    (integer->char (bit32.band 223 (char->integer c)))
+    c))
+
+; String stuff
 (define (string . cs)
   (list->string cs))
 
+(define (make-string n c)
+  (string.rep c n))
+
+(define (string-downcase str)
+  (list->string (map char-downcase (string->list str))))
+
+(define (string-upcase str)
+  (list->string (map char-upcase (string->list str))))
+
+(define (string-copy str)
+  (substring str 0))
+
+; List stuff
 (define (list . es)
   es)
 
-; List stuff
 (define (caar x)    (car (car x)))
 (define (cadr x)    (car (cdr x)))
 (define (cdar x)    (cdr (car x)))
