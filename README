@@ -12,6 +12,11 @@ Implemented:
 
  * Basic functions (cons, car, cdr, type testing, math operations, ...)
 
+ * File I/O, console I/O
+   - Input: open-input-file, call-with-input-file, read, read-char, read-line
+   - Output: open-output-file, call-with-output-file, write, write-char,
+             display, newline
+
  * Lua interoperability
    - lua_var evaluates to "lua_var", translated to Scheme value
    - (lua_func ...) evaluates to the return value of lua_func(...) with the
@@ -20,9 +25,6 @@ Implemented:
 Partly implemented:
  * Error handling
    - error type implemented, still needs a try/handle/... mechanic
-
- * File I/O, console I/O
-   - Building blocks are implemented, but needs fleshing out
 
 Not implemented yet but planned:
  * Language primitives:
