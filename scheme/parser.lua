@@ -13,6 +13,7 @@ local function parser_new(source)
         source = source,
         line = 1,
         col = 1,
+        lastc = nil,
 
         store_lexical_information = true
     }
@@ -33,13 +34,23 @@ function parser.new_from_string(str)
 end
 
 function stringparser_methods:get_char()
-    return sub(self.input, self.pos, self.pos)
+    if not self.lastc then
+        self.lastc = sub(self.input, self.pos, self.pos)
+    end
+
+    return self.lastc
 end
 
 function stringparser_methods:advance()
-    self:update_linecol()
+    if self:get_char() == "\n" then
+        self.line = self.line + 1
+        self.col  = 1
+    else
+        self.col = self.col + 1
+    end
 
     self.pos = self.pos + 1
+    self.lastc = nil
 end
 
 function stringparser_methods:feed(chunk)
@@ -79,35 +90,37 @@ function parser.new_from_open_file(fp, name)
 end
 
 function fileparser_methods:get_char()
-    if self.buf == nil then
-        self.buf = self.file:read(self.bufsiz)
+    if not self.lastc then
+        if self.buf == nil then
+            self.buf = self.file:read(self.bufsiz)
+        end
+
+        self.lastc = sub(self.buf, self.bufpos, self.bufpos)
     end
 
-    return sub(self.buf, self.bufpos, self.bufpos)
+    return self.lastc
 end
 
 function fileparser_methods:advance()
-    self:update_linecol()
-
-    self.bufpos = self.bufpos + 1
-    if self.bufpos > #self.buf then
-        self.buf = self.file:read(self.bufsiz) or ""
-        self.bufpos = 1
-    end
-end
-
---[[
--- Generic methods
---]]
-function parser_methods:update_linecol()
     if self:get_char() == "\n" then
         self.line = self.line + 1
         self.col  = 1
     else
         self.col = self.col + 1
     end
+
+    self.bufpos = self.bufpos + 1
+    if self.bufpos > #self.buf then
+        self.buf = self.file:read(self.bufsiz) or ""
+        self.bufpos = 1
+    end
+
+    self.lastc = nil
 end
 
+--[[
+-- Generic methods
+--]]
 function parser_methods:err(fmt, ...)
     error(types.err.new("parse-error", {
         file = self.source,
