@@ -47,6 +47,36 @@ builtins["open-output-file"] = function(self, env, args)
     return make_port(self, args[1]:getval(), "w")
 end
 
+builtins["close-input-port"] = function(self, env, args)
+    expect_argc(self, 1, #args)
+    expect(args[1], "port")
+    ensure(args[1], args[1].mode == "r",
+        "type-error",
+        "port must be an input port")
+    ensure(args[1], args[1]:is_open(),
+        "argument-error",
+        "port already closed")
+
+    args[1]:close()
+
+    return list_new{}
+end
+
+builtins["close-output-port"] = function(self, env, args)
+    expect_argc(self, 1, #args)
+    expect(args[1], "port")
+    ensure(args[1], args[1].mode == "w",
+        "type-error",
+        "port must be an output port")
+    ensure(args[1], args[1]:is_open(),
+        "argument-error",
+        "port already closed")
+
+    args[1]:close()
+
+    return list_new{}
+end
+
 
 local function repr_display(arg)
     if arg:type() == "symbol" or

@@ -48,6 +48,18 @@
 (define (newline)
   (display #\newline))
 
+(define (call-with-input-file fnam fn)
+  (let* ((f   (open-input-file fnam))
+         (res (fn f)))
+    (close-input-port f)
+    res))
+
+(define (call-with-output-file fnam fn)
+  (let* ((f   (open-output-file fnam))
+         (res (fn f)))
+    (close-output-port f)
+    res))
+
 ; Type stuff
 (define (string . cs)
   (list->string cs))

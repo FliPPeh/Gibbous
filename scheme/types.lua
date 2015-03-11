@@ -591,6 +591,15 @@ types.port_meta = {
 
         eval = function(self, env)
             return self
+        end,
+
+        is_open = function(self)
+            return self.v ~= nil
+        end,
+
+        close = function(self)
+            self.v:close()
+            self.v = nil
         end
     }, types.base_meta)
 }
