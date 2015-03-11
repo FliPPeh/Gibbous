@@ -2,6 +2,7 @@ local builtins = {}
 
 local util = require "scheme.util"
 local types = require "scheme.types"
+local parser = require "scheme.parser"
 
 local err = util.err
 local ensure = util.ensure
@@ -190,6 +191,23 @@ builtins["write-char"] = function(self, env, args)
     return list_new{}
 end
 
+builtins["read"] = function(self, env, args)
+    expect_argc_max(self, 1, #args)
+
+    local obj
+
+    if #args > 0 then
+        verify_port(args[1], "r")
+
+        obj = parser.new_from_open_file(
+            args[1]:getval(),
+            args[1].path):parse_value()
+    else
+        obj = parser.new_from_open_file(io.stdin, "<stdin>"):parse_value()
+    end
+
+    return obj or types.port.eof_object
+end
 
 builtins["read-line"] = function(self, env, args)
     expect_argc_max(self, 1, #args)

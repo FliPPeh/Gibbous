@@ -11,7 +11,9 @@ local function parser_new(source)
     return {
         source = source,
         line = 1,
-        col = 1
+        col = 1,
+
+        store_lexical_information = true
     }
 end
 
@@ -51,7 +53,7 @@ function parser.new_from_file(f)
 
     self.file = io.open(f, "r")
     self.bufsiz = 4096
-    self.buf = self.file:read(self.bufsiz)
+    self.buf = nil
     self.bufpos = 1
 
     return setmetatable(self, {
@@ -59,7 +61,27 @@ function parser.new_from_file(f)
     })
 end
 
+function parser.new_from_open_file(fp, name)
+    local self = parser_new(name)
+
+    self.file = fp
+    self.bufsiz = 1 -- much more expensive, but we don't want to read more than
+                    -- what's necessary in case someone else wants to read from
+                    -- the same handle.
+    self.buf = nil
+    self.bufpos = 1
+    self. store_lexical_information = false
+
+    return setmetatable(self, {
+        __index = fileparser_methods
+    })
+end
+
 function fileparser_methods:get_char()
+    if self.buf == nil then
+        self.buf = self.file:read(self.bufsiz)
+    end
+
     return self.buf:sub(self.bufpos, self.bufpos)
 end
 
@@ -96,7 +118,9 @@ end
 function parser_methods:emit(fn, v, dl, dc)
     local v = fn(v)
 
-    v:setpos(self.source, dl, dc)
+    if self.store_lexical_information then
+        v:setpos(self.source, dl, dc)
+    end
 
     return v
 end
