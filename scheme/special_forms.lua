@@ -155,7 +155,7 @@ local function quote_list(self, env, val, i)
     end
 end
 
-quote = function(self, env, val)
+function quote(self, env, val)
     if val.type == "identifier" then
         local v = env:intern(val:getval())
         v:setpos(val:getpos())
@@ -283,6 +283,18 @@ special_forms["define"] = function(self, env, args)
         env:define(funcname,
             create_lambda(self, env, funcname, funcparams, varparam, val))
     end
+end
+
+special_forms["set!"] = function(self, env, args)
+    ensure(self, #args == 2,
+        "syntax-error",
+        "set!: insufficient arguments")
+
+    local var, val = args[1], args[2]
+
+    expect(var, "identifier")
+
+    env:define(var:getval(), val:eval(env))
 end
 
 special_forms["lambda"] = function(self, env, args)
