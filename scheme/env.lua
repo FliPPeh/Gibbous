@@ -78,15 +78,15 @@ env_meta = {
                     print(res)
                 end
             end
-            --]]
         end,
 
         intern = function(self, sym)
-            local s = self.symbols[sym:lower()]
+            sym = sym:lower()
+            local s = self.symbols[sym]
 
             if not s then
-                s = types.symbol.new(sym:lower())
-                self.symbols[sym:lower()] = s
+                s = types.symbol.new(sym)
+                self.symbols[sym] = s
             end
 
             return s
@@ -98,13 +98,15 @@ env_meta = {
         end,
 
         is_defined = function(self, var)
+            var = var:lower()
+
             local special_forms = require "scheme.special_forms"
 
-            if special_forms[var:lower()] then
+            if special_forms[var] then
                 return true
             end
 
-            return self.env[var:lower()] ~= nil
+            return self.env[var] ~= nil
         end,
 
         resolve = function(self, var)
