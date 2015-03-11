@@ -119,7 +119,7 @@ local function verify_port(port, typ)
         "cannot write to closed port", port)
 end
 
-function builtins.newline(self, env, args)
+builtins["newline"] = function(self, env, args)
     expect_argc_max(self, 1, #args)
 
     if #args == 0 then
@@ -132,7 +132,7 @@ function builtins.newline(self, env, args)
     return list_new{}
 end
 
-function builtins.display(self, env, args)
+builtins["display"] = function(self, env, args)
     expect_argc_min(self, 1, #args)
     expect_argc_max(self, 2, #args)
 
@@ -147,7 +147,7 @@ function builtins.display(self, env, args)
     return list_new{}
 end
 
-function builtins.write(self, env, args)
+builtins["write"] = function(self, env, args)
     expect_argc_min(self, 1, #args)
     expect_argc_max(self, 2, #args)
 
@@ -223,7 +223,7 @@ builtins["read-char"] = function(self, env, args)
     return c and char_new(c) or types.port.eof_object
 end
 
-function builtins.format(self, env, args)
+builtins["format"] = function(self, env, args)
     expect_argc_min(self, 1, #args)
 
     local fargs = {}
@@ -357,7 +357,7 @@ end)
 --[[
 -- List stuff
 --]]
-function builtins.cons(self, env, args)
+builtins["cons"] = function(self, env, args)
     expect_argc(self, 2, #args)
 
     if args[2]:type() == "list" then
@@ -367,7 +367,7 @@ function builtins.cons(self, env, args)
     end
 end
 
-function builtins.car(self, env, args)
+builtins["car"] = function(self, env, args)
     expect_argc(self, 1, #args)
     expect(args[1], {"pair", "list"})
     ensure(args[1], #args[1]:getval() > 0,
@@ -377,7 +377,7 @@ function builtins.car(self, env, args)
     return args[1]:getval()[1]
 end
 
-function builtins.cdr(self, env, args)
+builtins["cdr"] = function(self, env, args)
     expect_argc(self, 1, #args)
     expect(args[1], {"pair", "list"})
 
@@ -388,7 +388,7 @@ function builtins.cdr(self, env, args)
     end
 end
 
-function builtins.length(self, env, args)
+builtins["length"] = function(self, env, args)
     expect_argc(self, 1, #args)
     expect(args[1], {"list", "string"})
 
@@ -440,7 +440,7 @@ builtins["output-port?"] = function(self, env, args)
 end
 
 
-function builtins.type(self, env, args)
+builtins["type"] = function(self, env, args)
     expect_argc(self, 1, #args)
 
     return str_new(args[1]:type())
