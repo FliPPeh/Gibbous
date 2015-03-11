@@ -189,3 +189,9 @@
 
 (define (negative? x)
   (not (positive? x)))
+
+(define (even? x)
+  (= 0 (modulo x 2)))
+
+(define (odd? x)
+  (not (even? x)))
