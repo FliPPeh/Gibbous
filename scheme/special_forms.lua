@@ -244,7 +244,7 @@ special_forms["define"] = function(self, env, args)
         "syntax-error",
         "define: insufficient arguments")
 
-    local var, val = table.unpack(args)
+    local var, val = args[1], args[2]
 
     ensure(var,
         var.type == "identifier" or var.type == "list",

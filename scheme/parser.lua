@@ -6,6 +6,7 @@ local fileparser_methods = setmetatable({}, { __index = parser_methods })
 
 local types = require "scheme.types"
 
+local sub = string.sub
 
 local function parser_new(source)
     return {
@@ -32,7 +33,7 @@ function parser.new_from_string(str)
 end
 
 function stringparser_methods:get_char()
-    return self.input:sub(self.pos, self.pos)
+    return sub(self.input, self.pos, self.pos)
 end
 
 function stringparser_methods:advance()
@@ -82,7 +83,7 @@ function fileparser_methods:get_char()
         self.buf = self.file:read(self.bufsiz)
     end
 
-    return self.buf:sub(self.bufpos, self.bufpos)
+    return sub(self.buf, self.bufpos, self.bufpos)
 end
 
 function fileparser_methods:advance()
@@ -290,7 +291,7 @@ function parser_methods:parse_bool_or_char()
                 if buf:find("x%x%x") then
                     return self:emit(
                         types.char.new,
-                        string.char(tonumber(buf:sub(2), 16)),
+                        string.char(tonumber(sub(buf, 2), 16)),
                         dl,
                         dc)
                 else
@@ -366,8 +367,9 @@ function parser_methods:parse_identifier(c)
         end
     end
 
-    if tonumber(buf) ~= nil then
-        return self:emit(types.number.new, tonumber(buf), dl, dc)
+    local num = tonumber(buf)
+    if num ~= nil then
+        return self:emit(types.number.new, num, dl, dc)
     else
         return self:emit(types.ident.new, buf, dl, dc)
     end
