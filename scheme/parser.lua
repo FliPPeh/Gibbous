@@ -188,7 +188,7 @@ function parser_methods:parse_value(c)
         -- string
         return self:parse_string()
 
-    elseif not c:find("[%d%s%(%)%#%[%]%'%;]") then
+    elseif not c:find("[%d%s%(%)%#%[%]%'%;%\\]") then
         -- identifier
         return self:parse_identifier(c)
 
@@ -357,7 +357,7 @@ function parser_methods:parse_identifier(c)
     while true do
         c = self:get_char()
 
-        if not c:find("[%s%(%)%#%[%]%'%;]") then
+        if c ~= "" and not c:find("[%s%(%)%#%[%]%'%;%\\]") then
             buf = buf .. c
 
             self:advance()
