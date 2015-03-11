@@ -395,13 +395,6 @@ builtins["length"] = function(self, env, args)
     return number_new(#args[1]:getval())
 end
 
-builtins["pair?"] = function(self, env, args)
-    expect_argc(self, 1, #args)
-    expect(args[1], "list")
-
-    return bool_new(#args[1]:getval() == 2)
-end
-
 builtins["null?"] = function(self, env, args)
     expect_argc(self, 1, #args)
     expect(args[1], "list")
