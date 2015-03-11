@@ -550,7 +550,23 @@ types.port = {
             path = "<unknown path>",
             mode = "?"
         }, types.port_meta)
-    end
+    end,
+
+    eof_object = setmetatable({}, {
+        __tostring = function(self)
+            return "#<eof>"
+        end,
+
+        __index = setmetatable({
+            type = function(self)
+                return "eof-object"
+            end,
+
+            eval = function(self, env)
+                return self
+            end
+        }, types.base_meta)
+    })
 }
 
 types.port_meta = {

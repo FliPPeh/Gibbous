@@ -105,13 +105,33 @@ end
 builtins["read-line"] = function(self, env, args)
     expect_argc_max(self, 1, #args)
 
+    local line
+
     if #args > 0 then
         expect(args[1], "port")
 
-        return str_new(args[1]:getval():read("*l"))
+        line = args[1]:getval():read("*l")
+    else
+        line = io.read("*l")
     end
 
-    return str_new(io.read("*l"))
+    return line and str_new(line) or types.port.eof_object
+end
+
+builtins["read-char"] = function(self, env, args)
+    expect_argc_max(self, 1, #args)
+
+    local c
+
+    if #args > 0 then
+        expect(args[1], "port")
+
+        c = args[1]:getval():read(1)
+    else
+        c = io.read(1)
+    end
+
+    return c and char_new(c) or types.port.eof_object
 end
 
 function builtins.format(self, env, args)
@@ -312,18 +332,24 @@ local function is_type(typ)
     end
 end
 
-for i, t in ipairs{"symbol",
-                   "pair",
-                   "list",
-                   "number",
-                   "string",
-                   "boolean",
-                   "char",
-                   "procedure",
-                   "port",
-                   "error"} do
+for i, t in ipairs{"symbol", "pair", "list", "number", "string", "boolean",
+                   "char", "procedure", "port", "eof-object", "error"} do
     builtins[t .. "?"] = is_type(t)
 end
+
+-- Special functions for input and output ports
+builtins["input-port?"] = function(self, env, args)
+    expect_argc(self, 1, #args)
+
+    return bool_new(args[1]:type() == "port" and args[1].mode == "r")
+end
+
+builtins["output-port?"] = function(self, env, args)
+    expect_argc(self, 1, #args)
+
+    return bool_new(args[1]:type() == "port" and args[1].mode == "w")
+end
+
 
 function builtins.type(self, env, args)
     expect_argc(self, 1, #args)
