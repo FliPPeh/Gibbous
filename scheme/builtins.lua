@@ -52,10 +52,10 @@ builtins["close-input-port"] = function(self, env, args)
     expect(args[1], "port")
     ensure(args[1], args[1].mode == "r",
         "type-error",
-        "port must be an input port")
+        "port must be an input port: %s", args[1])
     ensure(args[1], args[1]:is_open(),
         "argument-error",
-        "port already closed")
+        "port already closed: %s", args[1])
 
     args[1]:close()
 
@@ -67,10 +67,10 @@ builtins["close-output-port"] = function(self, env, args)
     expect(args[1], "port")
     ensure(args[1], args[1].mode == "w",
         "type-error",
-        "port must be an output port")
+        "port must be an output port: %s", args[1])
     ensure(args[1], args[1]:is_open(),
         "argument-error",
-        "port already closed")
+        "port already closed: %s", args[1])
 
     args[1]:close()
 
@@ -108,24 +108,66 @@ local function repr_display(arg)
     end
 end
 
+local function verify_port(port, typ)
+    expect(port, "port")
+    ensure(port, port.mode == typ,
+        "type-error",
+        "cannot write to %s-port: %s", typ == "w" and "input" or "output", port)
+
+    ensure(port, port:is_open(),
+        "argument-error",
+        "cannot write to closed port", port)
+end
+
+function builtins.newline(self, env, args)
+    expect_argc_max(self, 1, #args)
+
+    if #args == 0 then
+        io.write("\n")
+    else
+        verify_port(args[1], "w")
+        args[1]:getval():write("\n")
+    end
+
+    return list_new{}
+end
 
 function builtins.display(self, env, args)
-    expect_argc(self, 1, #args)
+    expect_argc_min(self, 1, #args)
+    expect_argc_max(self, 2, #args)
 
-    io.write(repr_display(args[1]))
+    if #args == 1 then
+        io.write(repr_display(args[1]))
+    else
+        verify_port(args[2], "w")
+
+        args[2]:getval():write(repr_display(args[1]))
+    end
 
     return list_new{}
 end
 
 function builtins.write(self, env, args)
-    expect_argc(self, 1, #args)
+    expect_argc_min(self, 1, #args)
+    expect_argc_max(self, 2, #args)
+
+    local str
 
     if args[1]:type() == "list" or
        args[1]:type() == "pair" or
        args[1]:type() == "symbol" then
-        io.write("'" .. tostring(args[1]))
+        str = "'" .. tostring(args[1])
     else
-        io.write(tostring(args[1]))
+        str = tostring(args[1])
+    end
+
+
+    if #args == 1 then
+        io.write(str)
+    else
+        verify_port(args[2], "w")
+
+        args[2]:getval():write(str)
     end
 
     return list_new{}
@@ -138,7 +180,7 @@ builtins["read-line"] = function(self, env, args)
     local line
 
     if #args > 0 then
-        expect(args[1], "port")
+        verify_port(args[1], "r")
 
         line = args[1]:getval():read("*l")
     else
@@ -154,7 +196,7 @@ builtins["read-char"] = function(self, env, args)
     local c
 
     if #args > 0 then
-        expect(args[1], "port")
+        verify_port(args[1], "r")
 
         c = args[1]:getval():read(1)
     else

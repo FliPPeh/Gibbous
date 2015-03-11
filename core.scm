@@ -45,9 +45,6 @@
 (define call-with-current-continuation call/cc)
 
 ; I/O stuff
-(define (newline)
-  (display #\newline))
-
 (define (call-with-input-file fnam fn)
   (let* ((f   (open-input-file fnam))
          (res (fn f)))
