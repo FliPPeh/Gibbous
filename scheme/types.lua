@@ -630,9 +630,31 @@ types.err_meta = {
                     self.errtrace)
             end
         end
-    }, types.err_meta)
+    }, types.base_meta)
 }
 
+
+types.map = {
+    new = function(map)
+        return setmetatable({
+            v = map
+        }, types.map_meta)
+    end
+}
+
+types.map_meta = {
+    __tostring = function(self)
+        return ("#<lua-map: %s>"):format(self.v)
+    end,
+
+    __index = setmetatable({
+        type = "map",
+
+        eval = function(self, env)
+            return self
+        end,
+    }, types.base_meta)
+}
 
 -- Slightly derived from: https://stackoverflow.com/a/7528301/280656
 local function is_array(tab)
@@ -685,7 +707,7 @@ function types.toscheme(val)
         -- Can be an array or a map. We don't support maps yet, so we'll treat
         -- it as a list.
         if not is_array(val) then
-            error(("cannot only convert Lua array tables"), 1)
+            return types.map.new(val)
         end
 
         local t = {}

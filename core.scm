@@ -107,6 +107,14 @@
 (define (string-copy str)
   (substring str 0))
 
+; Map stuff
+(define (map-get* m . keys)
+  (if (null? keys)
+    m
+    (apply map-get*
+      (list (map-get m (car keys)))
+      (cdr keys))))
+
 ; List stuff
 (define (list . es)
   es)

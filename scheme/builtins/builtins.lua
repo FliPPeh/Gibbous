@@ -14,6 +14,7 @@ for _, mod in ipairs{
         require("scheme.builtins.comparison"),
         require("scheme.builtins.math"),
         require("scheme.builtins.list"),
+        require("scheme.builtins.map"),
         require("scheme.builtins.string"),
         require("scheme.builtins.typeconv"),
         require("scheme.builtins.io")} do
