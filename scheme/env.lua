@@ -8,7 +8,7 @@ local util = require "scheme.util"
 local env_meta
 
 function env.new_environment(lua_env)
-    local builtins = require "scheme.builtins"
+    local builtins = require "scheme.builtins.builtins"
     local self = setmetatable({
         env = {},
         name = "root",
