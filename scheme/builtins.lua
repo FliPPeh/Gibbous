@@ -173,6 +173,23 @@ function builtins.write(self, env, args)
     return list_new{}
 end
 
+builtins["write-char"] = function(self, env, args)
+    expect_argc_min(self, 1, #args)
+    expect_argc_max(self, 2, #args)
+
+    expect(args[1], "char")
+
+    if #args == 1 then
+        io.write(args[1]:getval())
+    else
+        verify_port(args[2], "w")
+
+        args[2]:getval():write(args[1]:getval())
+    end
+
+    return list_new{}
+end
+
 
 builtins["read-line"] = function(self, env, args)
     expect_argc_max(self, 1, #args)
