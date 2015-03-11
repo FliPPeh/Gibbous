@@ -80,14 +80,14 @@ end
 
 
 local function repr_display(arg)
-    if arg:type() == "symbol" or
-       arg:type() == "string" or
-       arg:type() == "number" or
-       arg:type() == "char" then
+    if arg.type == "symbol" or
+       arg.type == "string" or
+       arg.type == "number" or
+       arg.type == "char" then
 
        return arg:getval()
 
-    elseif arg:type() == "list" then
+    elseif arg.type == "list" then
         local parts = {}
 
         for i, v in ipairs(arg:getval()) do
@@ -95,10 +95,10 @@ local function repr_display(arg)
         end
 
         return "(" .. table.concat(parts, " ") .. ")"
-    elseif arg:type() == "pair" then
+    elseif arg.type == "pair" then
         local v2s = repr_display(arg:getval()[2])
 
-        if arg:getval()[2]:type() == "pair" then
+        if arg:getval()[2].type == "pair" then
             v2s = v2s:sub(2, #v2s - 1)
             return ("(%s %s)"):format(repr_display(arg:getval()[1]), v2s)
         else
@@ -154,9 +154,9 @@ builtins["write"] = function(self, env, args)
 
     local str
 
-    if args[1]:type() == "list" or
-       args[1]:type() == "pair" or
-       args[1]:type() == "symbol" then
+    if args[1].type == "list" or
+       args[1].type == "pair" or
+       args[1].type == "symbol" then
         str = "'" .. tostring(args[1])
     else
         str = tostring(args[1])
@@ -246,7 +246,7 @@ builtins["format"] = function(self, env, args)
 
     local fargs = {}
     for i = 2, #args do
-        if args[i]:type() ~= "string" and args[i]:type() ~= "number" then
+        if args[i].type ~= "string" and args[i].type ~= "number" then
             table.insert(fargs, tostring(args[i]))
         else
             table.insert(fargs, args[i]:getval())
@@ -355,7 +355,7 @@ local function binary_numeric_primitive(op)
         local a, b = args[1], args[2]
 
         expect(a, "number", "invalid operand type")
-        expect(b, a:type(), "operand type mismatch")
+        expect(b, a.type, "operand type mismatch")
 
         return number_new(op(a:getval(), b:getval()))
     end
@@ -378,7 +378,7 @@ end)
 builtins["cons"] = function(self, env, args)
     expect_argc(self, 2, #args)
 
-    if args[2]:type() == "list" then
+    if args[2].type == "list" then
         return list_new{args[1], table.unpack(args[2]:getval())}
     else
         return pair_new(args[1], args[2])
@@ -399,7 +399,7 @@ builtins["cdr"] = function(self, env, args)
     expect_argc(self, 1, #args)
     expect(args[1], {"pair", "list"})
 
-    if args[1]:type() == "list" then
+    if args[1].type == "list" then
         return list_new{table.unpack(args[1]:getval(), 2)}
     else
         return args[1]:getval()[2]
@@ -428,7 +428,7 @@ local function is_type(typ)
     return function(self, env, args)
         expect_argc(self, 1, #args)
 
-        return bool_new(args[1]:type() == typ)
+        return bool_new(args[1].type == typ)
     end
 end
 
@@ -441,20 +441,20 @@ end
 builtins["input-port?"] = function(self, env, args)
     expect_argc(self, 1, #args)
 
-    return bool_new(args[1]:type() == "port" and args[1].mode == "r")
+    return bool_new(args[1].type == "port" and args[1].mode == "r")
 end
 
 builtins["output-port?"] = function(self, env, args)
     expect_argc(self, 1, #args)
 
-    return bool_new(args[1]:type() == "port" and args[1].mode == "w")
+    return bool_new(args[1].type == "port" and args[1].mode == "w")
 end
 
 
 builtins["type"] = function(self, env, args)
     expect_argc(self, 1, #args)
 
-    return str_new(args[1]:type())
+    return str_new(args[1].type)
 end
 
 builtins["symbol->string"] = function(self, env, args)
@@ -546,10 +546,10 @@ local function is_eqv(a, b)
     if is_eq(a, b) then
         return true
 
-    elseif a:type() == "number" or a:type() == "char" then
+    elseif a.type == "number" or a.type == "char" then
         return a:getval() == b:getval()
 
-    elseif a:type() == "procedure" then
+    elseif a.type == "procedure" then
         if a.builtin and b.builtin then
             return a.body == b.body
         end
@@ -563,10 +563,10 @@ local function is_equal(a, b)
     if is_eqv(a, b) then
         return true
 
-    elseif a:type() == "string" then
+    elseif a.type == "string" then
         return a:getval() == b:getval()
 
-    elseif a:type() == "list" then
+    elseif a.type == "list" then
         local a_val, b_val = a:getval(), b:getval()
 
         if #a_val ~= #b_val then
@@ -597,7 +597,7 @@ builtins["eqv?"] = function(self, env, args)
 
     local a, b = args[1], args[2]
 
-    if a:type() ~= b:type() then
+    if a.type ~= b.type then
         return bool_new(false)
     else
         return bool_new(is_eqv(a, b))
@@ -609,7 +609,7 @@ builtins["equal?"] = function(self, env, args)
 
     local a, b = args[1], args[2]
 
-    if a:type() ~= b:type() then
+    if a.type ~= b.type then
         return bool_new(false)
     else
         return bool_new(is_equal(a, b))
@@ -646,7 +646,7 @@ builtins["xor"] = function(self, env, args)
     expect_argc(self, 2, #args)
 
     expect(args[1], "boolean", "invalid operand type")
-    expect(args[2], args[1]:type(), "operand type mismatch")
+    expect(args[2], args[1].type, "operand type mismatch")
 
     return bool_new(args[1]:getval() ~= args[2]:getval())
 end
@@ -660,7 +660,7 @@ local function binary_comparison(typ)
             local a, b = args[1], args[2]
 
             expect(a, typ, "invalid operand type")
-            expect(b, a:type(), "operand type mismatch")
+            expect(b, a.type, "operand type mismatch")
 
             return bool_new(op(a:getval(), b:getval()))
         end
@@ -678,7 +678,7 @@ local function series_comparison(typ)
                 local a, b = args[i - 1], args[i]
 
                 expect(a, typ, "invalid operand type")
-                expect(b, a:type(), "operand type mismatch")
+                expect(b, a.type, "operand type mismatch")
 
                 if not op(a:getval(), b:getval()) then
                     return bool_new(false)

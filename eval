@@ -7,5 +7,5 @@ env:eval_file("core.scm")
 local res = env:eval(arg[1] or io.read('*a'))
 
 if res then
-    print((">> %s\n  %s"):format(res, res:type()))
+    print((">> %s\n  %s"):format(res, res.type))
 end

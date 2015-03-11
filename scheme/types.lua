@@ -72,7 +72,7 @@ types.base_meta = {
             err(self,
                 "evaluation-error",
                 "cannot evaluate value of type %s: %s",
-                    self:type(),
+                    self.type,
                     self)
         end,
     }
@@ -95,9 +95,7 @@ types.symbol_meta = {
     end,
 
     __index = setmetatable({
-        type = function(self)
-            return "symbol"
-        end,
+        type = "symbol",
 
         eval = function(self, env)
             return env:intern(self.v)
@@ -121,15 +119,12 @@ types.ident_meta = {
     end,
 
     __index = setmetatable({
-        type = function(self)
-            -- Shouldn't see this from within Scheme.
-            return "identifier"
-        end,
+        type = "identifier",
 
         eval = function(self, env)
             local val = self
 
-            while val:type() == "identifier" do
+            while val.type == "identifier" do
                 nval = env:resolve(val:getval())
 
                 if not nval then
@@ -163,9 +158,7 @@ types.str_meta = {
     end,
 
     __index = setmetatable({
-        type = function(self)
-            return "string"
-        end,
+        type = "string",
 
         eval = function(self, env)
             return self
@@ -188,9 +181,7 @@ types.number_meta = {
     end,
 
     __index = setmetatable({
-        type = function(self)
-            return "number"
-        end,
+        type = "number",
 
         eval = function(self, env)
             return self
@@ -227,9 +218,7 @@ types.char_meta = {
     end,
 
     __index = setmetatable({
-        type = function(self)
-            return "char"
-        end,
+        type = "char",
 
         eval = function(self, env)
             return self
@@ -268,9 +257,7 @@ types.boolean_meta = {
     end,
 
     __index = setmetatable({
-        type = function(self)
-            return "boolean"
-        end,
+        type = "boolean",
 
         eval = function(self, env)
             return self
@@ -289,7 +276,7 @@ types.pair_meta = {
     __tostring = function(self)
         local v2s = tostring(self[2])
 
-        if self[2]:type() == "pair" then
+        if self[2].type == "pair" then
             v2s = v2s:sub(2, #v2s - 1)
             return ("(%s %s)"):format(self[1], v2s)
         else
@@ -299,12 +286,10 @@ types.pair_meta = {
     end,
 
     __index = setmetatable({
+        type = "pair",
+
         getval = function(self)
             return self
-        end,
-
-        type = function(self)
-            return "pair"
         end,
 
         eval = function(self, env)
@@ -340,12 +325,10 @@ types.list_meta = {
     end,
 
     __index = setmetatable({
+        type = "list",
+
         getval = function(self)
             return self
-        end,
-
-        type = function(self)
-            return "list"
         end,
 
         eval = function(self, env)
@@ -360,9 +343,9 @@ types.list_meta = {
             local tail = {table.unpack(self, 2)}
 
             -- Look at head to find out what we need to do.
-            if head:type() == "procedure" then
+            if head.type == "procedure" then
                 -- Best case, we already got our callable, nothing to do
-            elseif head:type() == "identifier" then
+            elseif head.type == "identifier" then
                 -- Next best case, we have something to look up or it's a
                 -- special form.
                 local name_lower = head:getval():lower()
@@ -373,24 +356,24 @@ types.list_meta = {
 
                 local target = head:eval(env)
 
-                ensure(head, target:type() == "procedure",
+                ensure(head, target.type == "procedure",
                     "bad-invoke-error",
                     "cannot invoke on %s of type %s",
                         target,
-                        target:type())
+                        target.type)
 
                 target:setevalpos(head:getpos())
                 head = target
 
-            elseif head:type() == "list" then
+            elseif head.type == "list" then
                 -- Annoying case, another function call or the empty list
                 local res = head:eval(env)
 
-                ensure(head, res:type() == "procedure",
+                ensure(head, res.type == "procedure",
                     "bad-invoke-error",
                     "cannot invoke on %s of type %s",
                         res,
-                        res:type())
+                        res.type)
 
                 res:setevalpos(head:getpos())
                 head = res
@@ -400,7 +383,7 @@ types.list_meta = {
                     "bad-invoke-error",
                     "cannot invoke on %s of type %s",
                         head,
-                        head:type())
+                        head.type)
             end
 
             for i, arg in ipairs(tail) do
@@ -496,9 +479,7 @@ types.proc_meta = {
     end,
 
     __index = setmetatable({
-        type = function(self)
-            return "procedure"
-        end,
+        type = "procedure",
 
         call = function(self, env, args)
             if type(self.body) == "function" then
@@ -558,9 +539,7 @@ types.port = {
         end,
 
         __index = setmetatable({
-            type = function(self)
-                return "eof-object"
-            end,
+            type = "eof-object",
 
             eval = function(self, env)
                 return self
@@ -585,9 +564,7 @@ types.port_meta = {
     end,
 
     __index = setmetatable({
-        type = function(self)
-            return "port"
-        end,
+        type = "port",
 
         eval = function(self, env)
             return self
@@ -631,9 +608,7 @@ types.err_meta = {
     end,
 
     __index = setmetatable({
-        type = function(self)
-            return "error"
-        end,
+        type = "error",
 
         eval = function(self, env)
             return self
@@ -740,7 +715,7 @@ function types.toscheme(val)
 end
 
 function types.tolua(val, env)
-    if val:type() == "list" or val:type() == "pair" then
+    if val.type == "list" or val.type == "pair" then
         -- Not much of a distinction between pairs and lists in Lua land
         local list = {}
         local tolua = types.tolua
@@ -750,7 +725,7 @@ function types.tolua(val, env)
         end
 
         return list
-    elseif val:type() == "procedure" then
+    elseif val.type == "procedure" then
         -- We can wrap procedures inside a helper closure that converts the
         -- parameters and return values, the same way we can wrap a Lua function
         -- for Scheme.
@@ -770,7 +745,7 @@ function types.tolua(val, env)
             end
         end
 
-    elseif val:type() == "error" then
+    elseif val.type == "error" then
         return tostring(val)
 
     else
@@ -780,7 +755,7 @@ function types.tolua(val, env)
 
         if not v then
             util.err(val, "cannot convert value of type %s to Lua value: %s",
-                val:type(),
+                val.type,
                 val)
         end
 

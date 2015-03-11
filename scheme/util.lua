@@ -50,16 +50,16 @@ function util.expect(var, typ, as)
     as = as and (as .. ": ") or ""
 
     if type(typ) == "string" then
-        if var:type() ~= typ then
+        if var.type ~= typ then
             util.err(var, "type-error",
                 as ..  "expected value of type %s; got: %s (%s)",
                     typ,
                     var,
-                    var:type())
+                    var.type)
         end
     else
         for _, t in ipairs(typ) do
-            if var:type() == t then
+            if var.type == t then
                 return nil
             end
         end
@@ -68,7 +68,7 @@ function util.expect(var, typ, as)
             as .. "expected value of either type %s; got: %s (%s)",
                 table.concat(typ, ", "),
                 var,
-                var:type())
+                var.type)
     end
 end
 
@@ -84,7 +84,7 @@ function util.ensure(var, cond, t, fmt, ...)
 end
 
 function util.is_true(val)
-    if val:type() ~= "boolean" or val:getval() then
+    if val.type ~= "boolean" or val:getval() then
         return true
     else
         return false

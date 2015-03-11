@@ -18,7 +18,7 @@ special_forms["."] = function(self, env, args)
 
     local head = args[1]
 
-    while head:type() ~= "atom" do
+    while head.type ~= "atom" do
         head = head:eval(env)
     end
 
@@ -71,7 +71,7 @@ special_forms["cond"] = function(self, env, args)
 
     -- Sanity check before evaluating.
     for i, clause in ipairs(args) do
-        ensure(clause, clause:type() == "list",
+        ensure(clause, clause.type == "list",
             "syntax-error",
             "cond-clause must be a list")
 
@@ -79,7 +79,7 @@ special_forms["cond"] = function(self, env, args)
             "syntax-error",
             "cond-clause must be a list of at least size 2")
 
-        if clause:getval()[1]:type() == "identifier" and
+        if clause:getval()[1].type == "identifier" and
            clause:getval()[1]:getval() == "else" then
 
             ensure(clause, i == #args,
@@ -102,7 +102,7 @@ special_forms["cond"] = function(self, env, args)
 end
 
 local function isdot(val)
-    return val:type() == "identifier" and val:getval() == "."
+    return val.type == "identifier" and val:getval() == "."
 end
 
 
@@ -140,7 +140,7 @@ local function quote_list(self, env, val, i)
         end
 
 
-        if tail:type() == "list" then
+        if tail.type == "list" then
             -- Tail evaluated to list, collapse the whole thing down to a list
             return types.list.new{head, table.unpack(tail:getval())}
         else
@@ -156,12 +156,12 @@ local function quote_list(self, env, val, i)
 end
 
 quote = function(self, env, val)
-    if val:type() == "identifier" then
+    if val.type == "identifier" then
         local v = env:intern(val:getval())
         v:setpos(val:getpos())
 
         return v
-    elseif val:type() == "list" then
+    elseif val.type == "list" then
         return quote_list(self, env, val:getval())
     else
         return val
@@ -181,7 +181,7 @@ local function parse_paramslist(paramslist)
     local defined_params = {}
 
     for i, param in ipairs(paramslist) do
-        ensure(param, param:type() == "identifier",
+        ensure(param, param.type == "identifier",
             "syntax-error",
             "procedure parameter must be an identifier")
 
@@ -200,7 +200,7 @@ local function parse_paramslist(paramslist)
             end
 
             ensure(paramslist[i + 1],
-                paramslist[i + 1]:type() == "identifier",
+                paramslist[i + 1].type == "identifier",
                 "syntax-error",
                 "variadic parameter must be an identifier")
 
@@ -247,12 +247,12 @@ special_forms["define"] = function(self, env, args)
     local var, val = table.unpack(args)
 
     ensure(var,
-        var:type() == "identifier" or var:type() == "list",
+        var.type == "identifier" or var.type == "list",
         "syntax-error",
         "definition must be an identifier or a list")
 
     -- Are we defining a variable or a procedure?
-    if var:type() == "identifier" then
+    if var.type == "identifier" then
         -- variable!
         ensure(self, #args == 2, "syntax-error")
         ensure(self, not env:is_defined(var:getval()),
@@ -264,7 +264,7 @@ special_forms["define"] = function(self, env, args)
 
     else
         -- procedure!
-        ensure(var:getval()[1], var:getval()[1]:type() == "identifier",
+        ensure(var:getval()[1], var:getval()[1].type == "identifier",
             "syntax-error",
             "procedure name must be an identifier")
 
@@ -292,7 +292,7 @@ special_forms["lambda"] = function(self, env, args)
 
     local paramslist = args[1]
 
-    ensure(paramslist, paramslist:type() == "list",
+    ensure(paramslist, paramslist.type == "list",
         "syntax-error",
         "parameter list must be a list")
 
@@ -318,12 +318,12 @@ local function parse_bindings(bindings)
 
     local defined = {}
 
-    ensure(bindings, bindings:type() == "list",
+    ensure(bindings, bindings.type == "list",
         "syntax-error",
         "bindings list must be a list")
 
     for i, binding in ipairs(bindings:getval()) do
-        ensure(binding, binding:type() == "list",
+        ensure(binding, binding.type == "list",
             "syntax-error",
             "binding must be a list")
 
@@ -331,7 +331,7 @@ local function parse_bindings(bindings)
             "syntax-error",
             "binding must be a list of size 2")
 
-        ensure(binding, binding:getval()[1]:type() =="identifier",
+        ensure(binding, binding:getval()[1].type =="identifier",
             "syntax-error",
             "binding name must be an identifier")
 
