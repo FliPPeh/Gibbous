@@ -115,6 +115,9 @@ local function verify_port(port, typ)
         "cannot write to closed port", port)
 end
 
+--[[
+-- Writing
+--]]
 m["newline"] = function(self, env, args)
     expect_argc_max(self, 1, #args)
 
@@ -128,128 +131,76 @@ m["newline"] = function(self, env, args)
     return list_new{}
 end
 
-m["display"] = function(self, env, args)
-    expect_argc_min(self, 1, #args)
-    expect_argc_max(self, 2, #args)
+local function iow_function(fn)
+    return function(self, env, args)
+        expect_argc_min(self, 1, #args)
+        expect_argc_max(self, 2, #args)
 
-    if #args == 1 then
-        io.write(repr_display(args[1]))
-    else
-        verify_port(args[2], "w")
+        if #args == 1 then
+            fn(io.stdout, args[1], nil)
+        else
+            verify_port(args[2], "w")
 
-        args[2]:getval():write(repr_display(args[1]))
+            fn(args[2]:getval(), args[2], args[1])
+        end
+
+        return list_new{}
     end
-
-    return list_new{}
 end
 
-m["write"] = function(self, env, args)
-    expect_argc_min(self, 1, #args)
-    expect_argc_max(self, 2, #args)
+m["display"] = iow_function(function(f, arg)
+    f:write(repr_display(arg))
+end)
 
+m["write"] = iow_function(function(f, arg)
     local str
 
-    if args[1].type == "list" or
-       args[1].type == "pair" or
-       args[1].type == "symbol" then
-        str = "'" .. tostring(args[1])
+    if arg.type == "list" or
+       arg.type == "pair" or
+       arg.type == "symbol" then
+        str = "'" .. tostring(arg)
     else
-        str = tostring(args[1])
+        str = tostring(arg)
     end
 
+    f:write(str)
+end)
 
-    if #args == 1 then
-        io.write(str)
-    else
-        verify_port(args[2], "w")
+m["write-char"] = iow_function(function(f, arg)
+    expect(arg, "char")
 
-        args[2]:getval():write(str)
+    f:write(arg:getval())
+end)
+
+--[[
+-- Reading
+--]]
+local function ior_function(fn, resfn)
+    return function(self, env, args)
+        expect_argc_max(self, 1, #args)
+
+        local res
+
+        if #args > 0 then
+            verify_port(args[1], "r")
+
+            res = fn(args[1]:getval(), args[1])
+        else
+            res = fn(io.stdin, nil)
+        end
+
+        return res and (resfn and resfn(res) or res) or types.port.eof_object
     end
-
-    return list_new{}
 end
 
-m["write-char"] = function(self, env, args)
-    expect_argc_min(self, 1, #args)
-    expect_argc_max(self, 2, #args)
+m["read"] = ior_function("r", function(file, port)
+    return parser.new_from_open_file(
+        file,
+        port and port.path or "<stdin>"):parse_value()
+end)
 
-    expect(args[1], "char")
-
-    if #args == 1 then
-        io.write(args[1]:getval())
-    else
-        verify_port(args[2], "w")
-
-        args[2]:getval():write(args[1]:getval())
-    end
-
-    return list_new{}
-end
-
-m["read"] = function(self, env, args)
-    expect_argc_max(self, 1, #args)
-
-    local obj
-
-    if #args > 0 then
-        verify_port(args[1], "r")
-
-        obj = parser.new_from_open_file(
-            args[1]:getval(),
-            args[1].path):parse_value()
-    else
-        obj = parser.new_from_open_file(io.stdin, "<stdin>"):parse_value()
-    end
-
-    return obj or types.port.eof_object
-end
-
-m["read-all"] = function(self, env, args)
-    expect_argc_max(self, 1, #args)
-
-    local data
-
-    if #args > 0 then
-        verify_port(args[1], "r")
-
-        data = args[1]:getval():read("*a")
-    else
-        data = io.read("*a")
-    end
-
-    return data and str_new(data) or types.port.eof_object
-end
-
-m["read-line"] = function(self, env, args)
-    expect_argc_max(self, 1, #args)
-
-    local line
-
-    if #args > 0 then
-        verify_port(args[1], "r")
-
-        line = args[1]:getval():read("*l")
-    else
-        line = io.read("*l")
-    end
-
-    return line and str_new(line) or types.port.eof_object
-end
-
-m["read-char"] = function(self, env, args)
-    expect_argc_max(self, 1, #args)
-
-    local c
-
-    if #args > 0 then
-        verify_port(args[1], "r")
-
-        c = args[1]:getval():read(1)
-    else
-        c = io.read(1)
-    end
-
-    return c and char_new(c) or types.port.eof_object
-end
+m["read-all"]  = ior_function(function(f) return f:read("*a") end, str_new)
+m["read-line"] = ior_function(function(f) return f:read("*l") end, str_new)
+m["read-char"] = ior_function(function(f) return f:read(1)    end, char_new)
 
 return m
