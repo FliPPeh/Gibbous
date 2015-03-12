@@ -349,7 +349,6 @@ types.list_meta = {
                 return self
             end
 
-            local tail = {unpack(self, 2)}
             local target
 
             -- Look at head to find out what we need to do.
@@ -357,7 +356,8 @@ types.list_meta = {
                 local name_lower = head:getval():lower()
 
                 if special_forms[name_lower] then
-                    return special_forms[name_lower](head, env, tail)
+                    return special_forms[name_lower](
+                        head, env, {unpack(self, 2)})
                 end
 
             elseif head.type ~= "list" and head.type ~= "procedure" then
@@ -381,16 +381,19 @@ types.list_meta = {
                 target = head
             end
 
-            for i, arg in ipairs(tail) do
-                if not arg.self_eval then
-                    local argv = arg:eval(env)
-                    argv:setevalpos(arg:getpos())
+            local args = {}
+            for i = 2, #self do
+                local argv = self[i]
 
-                    tail[i] = argv
+                if not argv.self_eval then
+                    argv = argv:eval(env)
+                    argv:setevalpos(self[i]:getpos())
                 end
+
+                table.insert(args, argv)
             end
 
-            return target:call(env, tail)
+            return target:call(env, args)
         end
     }, types.base_meta)
 }

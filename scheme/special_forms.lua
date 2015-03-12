@@ -26,9 +26,7 @@ special_forms["if"] = function(self, env, args)
         "syntax-error",
         "if: insufficient arguments")
 
-    local cond = maybe_eval(args[1], env)
-
-    if is_true(cond) then
+    if is_true(maybe_eval(args[1], env)) then
         return maybe_eval(args[2], env)
     else
         return maybe_eval(args[3], env)
@@ -70,9 +68,7 @@ special_forms["cond"] = function(self, env, args)
     end
 
     for i, clause in ipairs(args) do
-        local cond = maybe_eval(clause:getval()[1], env)
-
-        if is_true(cond) then
+        if is_true(maybe_eval(clause:getval()[1], env)) then
             return wrap_bodies{unpack(clause:getval(), 2)}:eval(env)
         end
     end
