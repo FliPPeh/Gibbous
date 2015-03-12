@@ -10,7 +10,10 @@ local env_meta
 function env.new_environment(lua_env)
     local builtins = require "scheme.builtins.builtins"
     local self = setmetatable({
-        env = {},
+        env = {
+            ["nil"] = types.lua_nil
+        },
+
         name = "root",
         lua_env = lua_env or _G,
         parser = parser.new_from_string(),

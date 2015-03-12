@@ -426,12 +426,14 @@ types.proc = {
 
     wrap_native = function(name, wrapped_function)
         local function wrapper(self, env, args)
+            local n = #args
+
             for i = 1, #args do
                 args[i] = types.tolua(args[i], env)
             end
 
             local res = {xpcall(function()
-                return wrapped_function(table.unpack(args))
+                return wrapped_function(table.unpack(args, 1, n))
 
             end, function(err)
                 local f, l, c = self:getpos()
@@ -662,6 +664,20 @@ types.map_meta = {
     }, types.base_meta)
 }
 
+types.lua_nil = setmetatable({}, {
+    __tostring = function(self)
+        return "#<nil>"
+    end,
+
+    __index = setmetatable({
+        type = "nil",
+
+        eval = function(self, env)
+            return self
+        end
+    }, types.base_meta)
+})
+
 -- Slightly derived from: https://stackoverflow.com/a/7528301/280656
 local function is_array(tab)
     if type(tab) ~= "table" then
@@ -703,7 +719,8 @@ function types.toscheme(val)
            valmt == types.list_meta or
            valmt == types.proc_meta or
            valmt == types.port_meta or
-           valmt == types.err_meta then
+           valmt == types.err_meta or
+           val == types.lua_nil then
 
             return val
         end
@@ -731,7 +748,7 @@ function types.toscheme(val)
     elseif type(val) == "boolean" then
         return types.boolean.new(val)
     elseif type(val) == "nil" then
-        return types.list.new{}
+        return types.lua_nil
     elseif type(val) == "userdata" and io.type(val) == "file" then
         return types.port.wrap_native(val)
     elseif type(val) == "function" then
@@ -776,15 +793,20 @@ function types.tolua(val, env)
     elseif val.type == "error" then
         return tostring(val)
 
+    elseif val.type == "nil" then
+        return nil
+
     else
         -- Try getting a primitive (symbol, ident, str, number, char, bool) or
         -- the file object from a port.
         local v = val:getval()
 
         if not v then
-            util.err(val, "cannot convert value of type %s to Lua value: %s",
-                val.type,
-                val)
+            util.err(val,
+                "type-error",
+                "cannot convert value of type %s to Lua value: %s",
+                    val.type,
+                    val)
         end
 
         return v

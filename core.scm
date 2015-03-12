@@ -1,6 +1,3 @@
-; Basic stuff
-(define nil ())
-
 ; Functional stuff
 (define (map fn ls)
   (if (null? ls)
