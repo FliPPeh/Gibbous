@@ -26,31 +26,27 @@ function parser.new_from_string(str)
     local self = parser_new("<string>")
 
     self.input = str or ""
-    self.pos = 1
+    self.pos = 0
 
     return setmetatable(self, {
         __index = stringparser_methods
     })
 end
 
-function stringparser_methods:get_char()
-    if not self.lastc then
-        self.lastc = sub(self.input, self.pos, self.pos)
-    end
-
-    return self.lastc
-end
-
 function stringparser_methods:advance()
-    if self:get_char() == "\n" then
-        self.line = self.line + 1
-        self.col  = 1
-    else
-        self.col = self.col + 1
+    if self.lastc then
+        if self.lastc == "\n" then
+            self.line = self.line + 1
+            self.col  = 1
+        else
+            self.col = self.col + 1
+        end
     end
 
     self.pos = self.pos + 1
-    self.lastc = nil
+    self.lastc = sub(self.input, self.pos, self.pos)
+
+    return self.lastc
 end
 
 function stringparser_methods:feed(chunk)
@@ -66,7 +62,7 @@ function parser.new_from_file(f)
     self.file = io.open(f, "r")
     self.bufsiz = 4096
     self.buf = nil
-    self.bufpos = 1
+    self.bufpos = 0
 
     return setmetatable(self, {
         __index = fileparser_methods
@@ -81,7 +77,7 @@ function parser.new_from_open_file(fp, name)
                     -- what's necessary in case someone else wants to read from
                     -- the same handle.
     self.buf = nil
-    self.bufpos = 1
+    self.bufpos = 0
     self. store_lexical_information = false
 
     return setmetatable(self, {
@@ -89,33 +85,26 @@ function parser.new_from_open_file(fp, name)
     })
 end
 
-function fileparser_methods:get_char()
-    if not self.lastc then
-        if self.buf == nil then
-            self.buf = self.file:read(self.bufsiz)
-        end
-
-        self.lastc = sub(self.buf, self.bufpos, self.bufpos)
-    end
-
-    return self.lastc
-end
-
 function fileparser_methods:advance()
-    if self:get_char() == "\n" then
-        self.line = self.line + 1
-        self.col  = 1
-    else
-        self.col = self.col + 1
+    if self.lastc then
+        if self.lastc == "\n" then
+            self.line = self.line + 1
+            self.col  = 1
+        else
+            self.col = self.col + 1
+        end
     end
+
 
     self.bufpos = self.bufpos + 1
-    if self.bufpos > #self.buf then
+    if not self.buf or self.bufpos > #self.buf then
         self.buf = self.file:read(self.bufsiz) or ""
         self.bufpos = 1
     end
 
-    self.lastc = nil
+    self.lastc = sub(self.buf, self.bufpos, self.bufpos)
+
+    return self.lastc
 end
 
 --[[
@@ -139,13 +128,11 @@ function parser_methods:emit(fn, v, dl, dc)
     return v
 end
 
-function parser_methods:trim(c)
-    c = c or self:get_char()
+function parser_methods:trim()
+    local c = self.lastc
 
     while c and c:find("^%s") do
-        self:advance()
-
-        c = self:get_char()
+        c = self:advance()
     end
 
     return c
@@ -167,27 +154,26 @@ function parser_methods:parse()
     return list
 end
 
-function parser_methods:parse_value(c)
-    if not c or c:find("^%s") then
-        c = self:trim()
+function parser_methods:parse_value()
+    if not self.lastc then
+        self:advance()
     end
+
+    local c = self:trim()
 
     if not c or c == "" then
         return nil
     end
 
     if c == ";" then
-        self:advance()
+        c = self:advance()
 
-        c = self:get_char()
         while c ~= "\n" and c ~= "" do
-            self:advance()
-
-            c = self:get_char()
+            c = self:advance()
         end
 
         if c ~= "" then
-            return self:parse_value(c)
+            return self:parse_value()
         end
 
     elseif c == "(" then
@@ -225,11 +211,8 @@ end
 function parser_methods:parse_list()
     local dl, dc = self.line, self.col
 
-    -- Skip past "("
-    self:advance()
-
     local list = {}
-    local c
+    local c = self:advance()
 
     while true do
         c = self:trim()
@@ -237,7 +220,7 @@ function parser_methods:parse_list()
         if c == ")" or c == "" then
             break
         else
-            table.insert(list, self:parse_value(c))
+            table.insert(list, self:parse_value())
         end
     end
 
@@ -253,10 +236,7 @@ end
 
 function parser_methods:parse_bool_or_char()
     local dl, dc = self.line, self.col
-
-    self:advance()
-
-    local c = self:get_char()
+    local c = self:advance()
 
     if c == "t" or c == "T" then
         self:advance()
@@ -269,37 +249,28 @@ function parser_methods:parse_bool_or_char()
         return self:emit(types.boolean.new, false, dl, dc)
 
     elseif c == "\\" then
-        self:advance()
-
-        c = self:get_char()
+        c = self:advance()
 
         if c == "" then
             self:err("expected character, found <eof>")
         end
 
-        if not c:find("%s") and not c:find("%w") then
+        if not c:find("[%s%w]") then
             self:advance()
 
             return self:emit(types.char.new, c, dl, dc)
         else
-            local buf = c
+            local buf = ""
 
-            self:advance()
+            repeat
+                buf = buf .. c
 
-            while true do
-                c = self:get_char()
-
-                if not c:find("%a") and not c:find("%x") then
-                    break
-                else
-                    buf = buf .. c
-
-                    self:advance()
-                end
-            end
+                c = self:advance()
+            until not c:find("[%a%x]")
 
             if #buf == 1 then
                 return self:emit(types.char.new, buf, dl, dc)
+
             elseif #buf > 1 then
                 if buf:find("x%x%x") then
                     return self:emit(
@@ -321,34 +292,35 @@ function parser_methods:parse_bool_or_char()
     end
 end
 
-function parser_methods:parse_string(c)
+function parser_methods:parse_string()
     local buf = ""
+    local dl, dl = self.line, self.col
+    local escapes = {
+        ["\""] = "\"",
+        ["t"]  = "\t",
+        ["n"]  = "\n",
+        ["r"]  = "\r"
+    }
 
-    local dl, dc = self.line, self.col
+    local c
 
-    self:advance()
+    while true do
+        c = self:advance()
 
-    c = self:get_char()
-
-    while c ~= "\"" and c ~= "" do
         if c == "\\" then
-            self:advance()
+            c = self:advance()
 
-            local esc = { ["\""] = "\"", t = "\t", n = "\n", r = "\r" }
-            c = self:get_char()
-
-            if esc[c] then
-                buf = buf .. esc[c]
-                self:advance()
+            if escapes[c] then
+                c = escapes[c]
             else
                 self:err("invalid escape sequence \"%s\"", "\\" .. c)
             end
-        else
-            buf = buf .. c
-            self:advance()
+
+        elseif c == "\"" or c == "" then
+            break
         end
 
-        c = self:get_char()
+        buf = buf .. c
     end
 
     if c ~= "\"" then
@@ -362,26 +334,17 @@ function parser_methods:parse_string(c)
 end
 
 function parser_methods:parse_identifier(c)
-    local buf = c
-
+    local buf = ""
     local dl, dc = self.line, self.col
 
-    self:advance()
+    repeat
+        buf = buf .. c
 
-    while true do
-        c = self:get_char()
-
-        if c ~= "" and not c:find("[%s%(%)%#%[%]%'%;%\\]") then
-            buf = buf .. c
-
-            self:advance()
-        else
-            break
-        end
-    end
+        c = self:advance()
+    until c == "" or c:find("[%s%(%)%#%[%]%'%;%\\]")
 
     local num = tonumber(buf)
-    if num ~= nil then
+    if num then
         return self:emit(types.number.new, num, dl, dc)
     else
         return self:emit(types.ident.new, buf, dl, dc)
@@ -389,26 +352,16 @@ function parser_methods:parse_identifier(c)
 end
 
 function parser_methods:parse_number(n)
-    local buf = n
-
+    local buf = ""
     local dl, dc = self.line, self.col
 
-    self:advance()
+    repeat
+        buf = buf .. n
 
-    while true do
-        c = self:get_char()
-
-        if not c:find("[%.%deE]") then
-            break
-        else
-            buf = buf .. c
-
-            self:advance()
-        end
-    end
+        n = self:advance()
+    until not n:find("[%.%deE]")
 
     local num = tonumber(buf)
-
     if not num then
         self.line, self.col = dl, dc
 
