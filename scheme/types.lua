@@ -11,6 +11,8 @@ local expect_argc_min = util.expect_argc_min
 local expect_argc_max = util.expect_argc_max
 
 
+local unpack = table.unpack or unpack
+
 local ascii_names = {
     "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL",
     "BS",  "TAB", "LF",  "VT",  "FF",  "CR",  "SO",  "SI",
@@ -73,7 +75,7 @@ types.base_meta = {
                 "evaluation-error",
                 "cannot evaluate value of type %s: %s",
                     self.type,
-                    self)
+                    tostring(self))
         end,
     }
 }
@@ -177,7 +179,7 @@ types.number = {
 
 types.number_meta = {
     __tostring = function(self)
-        return string.format("%s", self.v)
+        return tostring(self.v)
     end,
 
     __index = setmetatable({
@@ -278,9 +280,9 @@ types.pair_meta = {
 
         if self[2].type == "pair" then
             v2s = v2s:sub(2, #v2s - 1)
-            return ("(%s %s)"):format(self[1], v2s)
+            return ("(%s %s)"):format(tostring(self[1]), v2s)
         else
-            return ("(%s . %s)"):format(self[1], v2s)
+            return ("(%s . %s)"):format(tostring(self[1]), v2s)
         end
 
     end,
@@ -340,51 +342,35 @@ types.list_meta = {
                 return self
             end
 
-            local tail = {table.unpack(self, 2)}
+            local tail = {unpack(self, 2)}
+            local target
 
             -- Look at head to find out what we need to do.
-            if head.type == "procedure" then
-                -- Best case, we already got our callable, nothing to do
-            elseif head.type == "identifier" then
-                -- Next best case, we have something to look up or it's a
-                -- special form.
+            if head.type == "identifier" then
                 local name_lower = head:getval():lower()
 
                 if special_forms[name_lower] then
                     return special_forms[name_lower](head, env, tail)
                 end
 
-                local target = head:eval(env)
-
-                ensure(head, target.type == "procedure",
-                    "bad-invoke-error",
-                    "cannot invoke on %s of type %s",
-                        target,
-                        target.type)
-
-                target:setevalpos(head:getpos())
-                head = target
-
-            elseif head.type == "list" then
-                -- Annoying case, another function call or the empty list
-                local res = head:eval(env)
-
-                ensure(head, res.type == "procedure",
-                    "bad-invoke-error",
-                    "cannot invoke on %s of type %s",
-                        res,
-                        res.type)
-
-                res:setevalpos(head:getpos())
-                head = res
-
-            else
+            elseif head.type ~= "list" and head.type ~= "procedure" then
                 err(head,
                     "bad-invoke-error",
-                    "cannot invoke on %s of type %s",
-                        head,
-                        head.type)
+                    "cannot invoke on value of type %s: %s",
+                        head.type,
+                        tostring(head))
             end
+
+            target = head:eval(env)
+
+            ensure(head, target.type == "procedure",
+                "bad-invoke-error",
+                "cannot invoke on value of type %s: %s",
+                    target.type,
+                    tostring(target))
+
+            target:setevalpos(head:getpos())
+            head = target
 
             for i, arg in ipairs(tail) do
                 local argv = arg:eval(env)
@@ -433,7 +419,7 @@ types.proc = {
             end
 
             local res = {xpcall(function()
-                return wrapped_function(table.unpack(args, 1, n))
+                return wrapped_function(unpack(args, 1, n))
 
             end, function(err)
                 local f, l, c = self:getpos()
@@ -445,7 +431,7 @@ types.proc = {
 
             if res[1] then
                 if #res > 2 then
-                    return types.toscheme({table.unpack(res, 2)})
+                    return types.toscheme({unpack(res, 2)})
                 else
                     return types.toscheme(res[2])
                 end
@@ -594,27 +580,31 @@ types.port_meta = {
 
 types.err = {
     new = function(typ, pos, message, lvl)
+        local pretty
+
+        if pos then
+            pretty = ("%s:%d:%d: %s"):format(
+                pos.file,
+                pos.line,
+                pos.col,
+                message)
+        else
+            pretty = message
+        end
+
         return setmetatable({
+            prettymsg = pretty,
             errtype = typ,
             errpos  = pos,
             errmsg  = message,
-            errtrace = debug.traceback(nil, lvl or 2)
+            errtrace = debug.traceback(pretty, lvl or 2)
         }, types.err_meta)
     end
 }
 
 types.err_meta = {
     __tostring = function(self)
-        if self.errpos then
-            return ("#<%s: %s:%d:%d: %s>"):format(
-                self.errtype,
-                self.errpos.file,
-                self.errpos.line,
-                self.errpos.col,
-                self.errmsg)
-        else
-            return ("#<%s: %s>"):format(self.errtype, self.errmsg)
-        end
+        return ("#<%s: %s"):format(self.errtype, self.prettymsg)
     end,
 
     __index = setmetatable({
@@ -625,20 +615,7 @@ types.err_meta = {
         end,
 
         tostring = function(self)
-            if self.errpos then
-                return ("%s:%d:%d: %s: %s\n%s"):format(
-                    self.errpos.file,
-                    self.errpos.line,
-                    self.errpos.col,
-                    self.errtype,
-                    self.errmsg,
-                    self.errtrace)
-            else
-                return ("?:?:?: %s: %s\n%s"):format(
-                    self.errtype,
-                    self.errmsg,
-                    self.errtrace)
-            end
+            return self.errtrace
         end
     }, types.base_meta)
 }
@@ -654,7 +631,7 @@ types.map = {
 
 types.map_meta = {
     __tostring = function(self)
-        return ("#<lua-map: %s>"):format(self.v)
+        return ("#<lua-map: %s>"):format(tostring(self.v))
     end,
 
     __index = setmetatable({
@@ -756,8 +733,8 @@ function types.toscheme(val)
     elseif type(val) == "function" then
         return types.proc.wrap_native("?", val)
     else
-        error(("cannot convert value of type %s to scheme value: %s"):format(
-            type(val), val), 2)
+        error(("cannot convert value of type %s to Scheme value: %s"):format(
+            type(val), tostring(val)), 2)
     end
 end
 
@@ -788,7 +765,7 @@ function types.tolua(val, env)
                     args[i] = types.toscheme(v, env)
                 end
 
-                return types.tolua(val:call(env, {table.unpack(args)}), env)
+                return types.tolua(val:call(env, {unpack(args)}), env)
             end
         end
 
@@ -808,7 +785,7 @@ function types.tolua(val, env)
                 "type-error",
                 "cannot convert value of type %s to Lua value: %s",
                     val.type,
-                    val)
+                    tostring(val))
         end
 
         return v

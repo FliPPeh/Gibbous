@@ -10,6 +10,8 @@ local expect_argc_min = util.expect_argc_min
 local expect_argc_max = util.expect_argc_max
 local is_true = util.is_true
 
+local unpack = table.unpack or unpack
+
 --[[
 special_forms["."] = function(self, env, args)
     local types = require "scheme.types"
@@ -35,7 +37,7 @@ special_forms["."] = function(self, env, args)
             fargs[i - 1] = types.tolua(args[i]:eval(env))
         end
 
-        return types.toscheme(val(table.unpack(fargs)))
+        return types.toscheme(val(unpack(fargs)))
     else
         err(args[1], "undefined lua value: %s", args[1])
     end
@@ -60,7 +62,7 @@ local function wrap_bodies(bodies)
     local types = require "scheme.types"
 
     if #bodies > 1 then
-        return types.list.new{types.ident.new("begin"), table.unpack(bodies)}
+        return types.list.new{types.ident.new("begin"), unpack(bodies)}
     else
         return bodies[1]
     end
@@ -94,7 +96,7 @@ special_forms["cond"] = function(self, env, args)
         local cond = clause:getval()[1]:eval(env)
 
         if is_true(cond) then
-            return wrap_bodies{table.unpack(clause:getval(), 2)}:eval(env)
+            return wrap_bodies{unpack(clause:getval(), 2)}:eval(env)
         end
     end
 
@@ -142,7 +144,7 @@ local function quote_list(self, env, val, i)
 
         if tail.type == "list" then
             -- Tail evaluated to list, collapse the whole thing down to a list
-            return types.list.new{head, table.unpack(tail:getval())}
+            return types.list.new{head, unpack(tail:getval())}
         else
             return types.pair.new(head, tail)
         end
@@ -151,7 +153,7 @@ local function quote_list(self, env, val, i)
             val[j] = quote(self, env, val[j])
         end
 
-        return types.list.new{table.unpack(val, i)}
+        return types.list.new{unpack(val, i)}
     end
 end
 
@@ -271,7 +273,7 @@ special_forms["define"] = function(self, env, args)
             "procedure name must be an identifier")
 
         local funcname = head:getval()
-        local paramslist = {table.unpack(var:getval(), 2)}
+        local paramslist = {unpack(var:getval(), 2)}
 
         ensure(self, not env:is_defined(funcname),
             "syntax-error",
@@ -280,7 +282,7 @@ special_forms["define"] = function(self, env, args)
 
         local funcparams, varparam = parse_paramslist(paramslist)
 
-        val = wrap_bodies{table.unpack(args, 2)}
+        val = wrap_bodies{unpack(args, 2)}
 
         env:define(funcname,
             create_lambda(head, env, funcname, funcparams, varparam, val))
@@ -312,7 +314,7 @@ special_forms["lambda"] = function(self, env, args)
 
     local funcparams, varparam = parse_paramslist(paramslist:getval())
     return create_lambda(self, env, nil, funcparams, varparam,
-        wrap_bodies{table.unpack(args, 2)})
+        wrap_bodies{unpack(args, 2)})
 end
 
 special_forms["begin"] = function(self, env, args)
@@ -349,7 +351,7 @@ local function parse_bindings(bindings)
             "syntax-error",
             "binding name must be an identifier")
 
-        local bindvar, bindval = table.unpack(binding:getval())
+        local bindvar, bindval = unpack(binding:getval())
 
         ensure(bindvar, defined[bindvar:getval()] == nil,
             "syntax-error",
@@ -382,7 +384,7 @@ special_forms["let"] = function(self, env, args)
         letenv:define(params[i], largs[i]:eval(env))
     end
 
-    return wrap_bodies{table.unpack(args, 2)}:eval(letenv)
+    return wrap_bodies{unpack(args, 2)}:eval(letenv)
 end
 
 special_forms["let*"] = function(self, env, args)
@@ -408,7 +410,7 @@ special_forms["let*"] = function(self, env, args)
         letenv:define(params[i], val)
     end
 
-    return wrap_bodies{table.unpack(args, 2)}:eval(letenv)
+    return wrap_bodies{unpack(args, 2)}:eval(letenv)
 end
 
 special_forms["letrec"] = function(self, env, args)

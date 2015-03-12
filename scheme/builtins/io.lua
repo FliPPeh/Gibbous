@@ -48,10 +48,10 @@ m["close-input-port"] = function(self, env, args)
     expect(args[1], "port")
     ensure(args[1], args[1].mode == "r",
         "type-error",
-        "port must be an input port: %s", args[1])
+        "port must be an input port: %s", tostring(args[1]))
     ensure(args[1], args[1]:is_open(),
         "argument-error",
-        "port already closed: %s", args[1])
+        "port already closed: %s", tostring(args[1]))
 
     args[1]:close()
 
@@ -63,10 +63,10 @@ m["close-output-port"] = function(self, env, args)
     expect(args[1], "port")
     ensure(args[1], args[1].mode == "w",
         "type-error",
-        "port must be an output port: %s", args[1])
+        "port must be an output port: %s",  tostring(args[1]))
     ensure(args[1], args[1]:is_open(),
         "argument-error",
-        "port already closed: %s", args[1])
+        "port already closed: %s", tostring(args[1]))
 
     args[1]:close()
 
@@ -78,11 +78,16 @@ local function verify_port(port, typ)
     expect(port, "port")
     ensure(port, port.mode == typ,
         "type-error",
-        "cannot write to %s-port: %s", typ == "w" and "input" or "output", port)
+        "cannot %s %s-port: %s",
+            typ == "w" and "write to" or "read from",
+            typ == "w" and "input" or "output",
+            tostring(port))
 
     ensure(port, port:is_open(),
         "argument-error",
-        "cannot write to closed port", port)
+        "cannot %s closed port: %s",
+            typ == "w" and "write to" or "read from",
+            tostring(port))
 end
 
 --[[

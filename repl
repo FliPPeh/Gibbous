@@ -46,7 +46,7 @@ while true do
     if is_balanced(evalbuf) then
         local res = env:eval(evalbuf .. "\n")
 
-        print((">> %s\n  %s"):format(res, res.type))
+        print((">> %s\n  %s"):format(tostring(res), res.type))
 
         evalbuf = ""
     end

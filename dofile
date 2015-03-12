@@ -6,4 +6,4 @@ env:eval_file("core.scm")
 
 local res = env:eval_file(arg[1])
 
-print((">> %s\n  %s"):format(res, res.type))
+print((">> %s\n  %s"):format(tostring(res), res.type))

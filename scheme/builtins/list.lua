@@ -12,6 +12,8 @@ local list_new = types.list.new
 local number_new = types.number.new
 local bool_new = types.boolean.new
 
+local unpack = table.unpack or unpack
+
 --[[
 -- List stuff
 --]]
@@ -19,7 +21,7 @@ m["cons"] = function(self, env, args)
     expect_argc(self, 2, #args)
 
     if args[2].type == "list" then
-        return list_new{args[1], table.unpack(args[2]:getval())}
+        return list_new{args[1], unpack(args[2]:getval())}
     else
         return pair_new(args[1], args[2])
     end
@@ -40,7 +42,7 @@ m["cdr"] = function(self, env, args)
     expect(args[1], {"pair", "list"})
 
     if args[1].type == "list" then
-        return list_new{table.unpack(args[1]:getval(), 2)}
+        return list_new{unpack(args[1]:getval(), 2)}
     else
         return args[1]:getval()[2]
     end

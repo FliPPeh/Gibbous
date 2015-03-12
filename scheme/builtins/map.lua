@@ -6,6 +6,8 @@ local types = require "scheme.types"
 local expect = util.expect
 local expect_argc = util.expect_argc
 
+local unpack = table.unpack or unpack
+
 --[[
 -- Map stuff
 --]]
@@ -19,7 +21,7 @@ m["make-map"] = function(self, env, args)
             map[types.tolua(v[1])] = types.tolua(v[2])
         else
             map[types.tolua(v[1])] = types.tolua(
-                types.list.new{table.unpack(v, 2)})
+                types.list.new{unpack(v, 2)})
         end
     end
 

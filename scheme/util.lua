@@ -22,7 +22,7 @@ function util.err(subj, t, fmt, ...)
 end
 
 function util.expect_argc_min(var, n, have)
-    name = var:getval() and (var:getval() .. ": ") or ""
+    name = var.name and (var.name .. ": ") or ""
 
     if have < n then
         util.err(var, "argument-error", name ..
@@ -32,11 +32,11 @@ function util.expect_argc_min(var, n, have)
 end
 
 function util.expect_argc_max(var, n, have)
-    name = var:getval() and (var:getval() .. ": ") or ""
+    name = var.name and (var.name .. ": ") or ""
 
     if have > n then
         util.err(var, "argument-error", name ..
-            "too many arguments: expected %d; got %d",
+            "too many arguments: expected at most %d; got %d",
                 n, have)
     end
 end
@@ -54,7 +54,7 @@ function util.expect(var, typ, as)
             util.err(var, "type-error",
                 as ..  "expected value of type %s; got: %s (%s)",
                     typ,
-                    var,
+                    tostring(var),
                     var.type)
         end
     else
@@ -67,7 +67,7 @@ function util.expect(var, typ, as)
         util.err(var, "type-error",
             as .. "expected value of either type %s; got: %s (%s)",
                 table.concat(typ, ", "),
-                var,
+                tostring(var),
                 var.type)
     end
 end
