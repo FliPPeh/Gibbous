@@ -264,11 +264,13 @@ special_forms["define"] = function(self, env, args)
 
     else
         -- procedure!
-        ensure(var:getval()[1], var:getval()[1].type == "identifier",
+        local head = var:getval()[1]
+
+        ensure(head, head.type == "identifier",
             "syntax-error",
             "procedure name must be an identifier")
 
-        local funcname = var:getval()[1]:getval()
+        local funcname = head:getval()
         local paramslist = {table.unpack(var:getval(), 2)}
 
         ensure(self, not env:is_defined(funcname),
@@ -281,7 +283,7 @@ special_forms["define"] = function(self, env, args)
         val = wrap_bodies{table.unpack(args, 2)}
 
         env:define(funcname,
-            create_lambda(self, env, funcname, funcparams, varparam, val))
+            create_lambda(head, env, funcname, funcparams, varparam, val))
     end
 end
 

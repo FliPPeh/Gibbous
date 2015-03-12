@@ -467,14 +467,20 @@ types.proc = {
 
 types.proc_meta = {
     __tostring = function(self)
+        local def = ""
+
+        if self:getpos() then
+            def = (" defined at %s:%d:%d"):format(self:getpos())
+        end
+
         if self.name then
             if self.builtin then
-                return ("#<native procedure %q>"):format(self.name)
+                return ("#<native-procedure %q%s>"):format(self.name, def)
             else
-                return ("#<procedure %q>"):format(self.name)
+                return ("#<procedure %q%s>"):format(self.name, def)
             end
         else
-            return ("#<anonymous procedure>")
+            return ("#<anonymous-procedure%s>"):format(def)
         end
     end,
 
@@ -560,7 +566,7 @@ types.port_meta = {
             mode = "native-"
         end
 
-        return ("#<%sfile %q>"):format(mode, self.path)
+        return ("#<%sport %q>"):format(mode, self.path)
     end,
 
     __index = setmetatable({
