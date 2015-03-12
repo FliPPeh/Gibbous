@@ -403,7 +403,7 @@ types.proc = {
     new = function(name, parent_env, params, variadic_param, body)
         return setmetatable({
             name   = name,
-            env    = parent_env:derive(name),
+            env    = parent_env,
             params = params,
             body   = body,
 
@@ -497,12 +497,14 @@ types.proc_meta = {
 
             expect_argc_min(self, #self.params, #args)
 
+            local exec_env = self.env:derive(self.name)
+
             if not self.varparam then
                 -- Not variadic, also has an upper bound
                 expect_argc_max(self, #self.params, #args)
 
                 for i, arg in ipairs(args) do
-                    self.env:define(self.params[i], arg)
+                    exec_env:define(self.params[i], arg)
                 end
             else
                 local vargs = {}
@@ -511,14 +513,14 @@ types.proc_meta = {
                     if i > #self.params then
                         table.insert(vargs, arg)
                     else
-                        self.env:define(self.params[i], arg)
+                        exec_env:define(self.params[i], arg)
                     end
                 end
 
-                self.env:define(self.varparam, types.list.new(vargs))
+                exec_env:define(self.varparam, types.list.new(vargs))
             end
 
-            return self.body:eval(self.env)
+            return self.body:eval(exec_env)
         end
     }, types.base_meta)
 }
