@@ -12,49 +12,26 @@ local is_true = util.is_true
 
 local unpack = table.unpack or unpack
 
---[[
-special_forms["."] = function(self, env, args)
-    local types = require "scheme.types"
 
-    expect_argc_min(self, 1, #args)
-
-    local head = args[1]
-
-    while head.type ~= "atom" do
-        head = head:eval(env)
-    end
-
-    local val = env:locate_lua(head:getval())
-
-    if val ~= nil and type(val) ~= "function" then
-        expect_argc_max(self, 1, #args)
-
-        return types.toscheme(val)
-    elseif val ~= nil then
-        local fargs = {}
-
-        for i = 2, #args do
-            fargs[i - 1] = types.tolua(args[i]:eval(env))
-        end
-
-        return types.toscheme(val(unpack(fargs)))
+local function maybe_eval(val, env)
+    if val.self_eval then
+        return val
     else
-        err(args[1], "undefined lua value: %s", args[1])
+        return val:eval(env)
     end
 end
---]]
 
 special_forms["if"] = function(self, env, args)
     ensure(self, #args == 3,
         "syntax-error",
         "if: insufficient arguments")
 
-    local cond = args[1]:eval(env)
+    local cond = maybe_eval(args[1], env)
 
     if is_true(cond) then
-        return args[2]:eval(env)
+        return maybe_eval(args[2], env)
     else
-        return args[3]:eval(env)
+        return maybe_eval(args[3], env)
     end
 end
 
@@ -93,7 +70,7 @@ special_forms["cond"] = function(self, env, args)
     end
 
     for i, clause in ipairs(args) do
-        local cond = clause:getval()[1]:eval(env)
+        local cond = maybe_eval(clause:getval()[1], env)
 
         if is_true(cond) then
             return wrap_bodies{unpack(clause:getval(), 2)}:eval(env)
@@ -262,7 +239,7 @@ special_forms["define"] = function(self, env, args)
             "variable or procedure already defined: %s",
                 var:getval())
 
-        env:define(var:getval(), val:eval(env))
+        env:define(var:getval(), maybe_eval(val, env))
 
     else
         -- procedure!
@@ -298,7 +275,7 @@ special_forms["set!"] = function(self, env, args)
 
     expect(var, "identifier")
 
-    env:define(var:getval(), val:eval(env))
+    env:define(var:getval(), maybe_eval(val, env))
 end
 
 special_forms["lambda"] = function(self, env, args)
@@ -320,9 +297,9 @@ end
 special_forms["begin"] = function(self, env, args)
     for i, e in ipairs(args) do
         if i == #args then
-            return e:eval(env)
+            return maybe_eval(e, env)
         else
-            e:eval(env)
+            maybe_eval(e, env)
         end
     end
 end
@@ -381,7 +358,7 @@ special_forms["let"] = function(self, env, args)
     local letenv = env:derive("let")
 
     for i = 1, #params do
-        letenv:define(params[i], largs[i]:eval(env))
+        letenv:define(params[i], maybe_eval(largs[i], env))
     end
 
     return wrap_bodies{unpack(args, 2)}:eval(letenv)
@@ -404,7 +381,7 @@ special_forms["let*"] = function(self, env, args)
     local letenv = env
 
     for i = 1, #params do
-        local val = largs[i]:eval(letenv)
+        local val = maybe_eval(largs[i], letenv)
 
         letenv = letenv:derive("let*-" .. params[i])
         letenv:define(params[i], val)

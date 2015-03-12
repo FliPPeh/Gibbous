@@ -44,6 +44,8 @@ types.charnames = charnames
 
 types.base_meta = {
     __index = {
+        self_eval = false,
+
         setpos = function(self, file, line, col)
             self.def_file = file
             self.def_line = line
@@ -161,6 +163,7 @@ types.str_meta = {
 
     __index = setmetatable({
         type = "string",
+        self_eval = true,
 
         eval = function(self, env)
             return self
@@ -184,6 +187,7 @@ types.number_meta = {
 
     __index = setmetatable({
         type = "number",
+        self_eval = true,
 
         eval = function(self, env)
             return self
@@ -221,6 +225,7 @@ types.char_meta = {
 
     __index = setmetatable({
         type = "char",
+        self_eval = true,
 
         eval = function(self, env)
             return self
@@ -260,6 +265,7 @@ types.boolean_meta = {
 
     __index = setmetatable({
         type = "boolean",
+        self_eval = true,
 
         eval = function(self, env)
             return self
@@ -289,6 +295,7 @@ types.pair_meta = {
 
     __index = setmetatable({
         type = "pair",
+        self_eval = true,
 
         getval = function(self)
             return self
@@ -361,25 +368,29 @@ types.list_meta = {
                         tostring(head))
             end
 
-            target = head:eval(env)
+            if head.type ~= "procedure" then
+                target = head:eval(env)
+                target:setevalpos(head:getpos())
 
-            ensure(head, target.type == "procedure",
-                "bad-invoke-error",
-                "cannot invoke on value of type %s: %s",
-                    target.type,
-                    tostring(target))
-
-            target:setevalpos(head:getpos())
-            head = target
-
-            for i, arg in ipairs(tail) do
-                local argv = arg:eval(env)
-                argv:setevalpos(arg:getpos())
-
-                tail[i] = argv
+                ensure(target, target.type == "procedure",
+                    "bad-invoke-error",
+                    "cannot invoke on value of type %s: %s",
+                        target.type,
+                        tostring(target))
+            else
+                target = head
             end
 
-            return head:call(env, tail)
+            for i, arg in ipairs(tail) do
+                if not arg.self_eval then
+                    local argv = arg:eval(env)
+                    argv:setevalpos(arg:getpos())
+
+                    tail[i] = argv
+                end
+            end
+
+            return target:call(env, tail)
         end
     }, types.base_meta)
 }
@@ -400,14 +411,10 @@ types.proc = {
 
     new_builtin = function(name, func)
         return setmetatable({
-            name   = name,
-            env    = nil,
-            params = nil,
-            body   = func,
-
-            varparam = nil,
-            builtin  = true
-        }, types.proc_meta)
+            name    = name,
+            body    = func,
+            builtin = true
+        }, types.native_proc_meta)
     end,
 
     wrap_native = function(name, wrapped_function)
@@ -441,15 +448,11 @@ types.proc = {
         end
 
         return setmetatable({
-            name   = name,
-            env    = nil,
-            params = nil,
-            body   = wrapper,
-
-            varparam = nil,
-            builtin  = true,
-            wraps    = wrapped_function
-        }, types.proc_meta)
+            name    = name,
+            body    = wrapper,
+            wraps   = wrapped_function,
+            builtin = true
+        }, types.native_proc_meta)
     end
 }
 
@@ -457,16 +460,12 @@ types.proc_meta = {
     __tostring = function(self)
         local def = ""
 
-        if self:getpos() then
-            def = (" defined at %s:%d:%d"):format(self:getpos())
+        if self:getdefpos() then
+            def = (" defined at %s:%d:%d"):format(self:getdefpos())
         end
 
         if self.name then
-            if self.builtin then
-                return ("#<native-procedure %q%s>"):format(self.name, def)
-            else
-                return ("#<procedure %q%s>"):format(self.name, def)
-            end
+            return ("#<procedure %q%s>"):format(self.name, def)
         else
             return ("#<anonymous-procedure%s>"):format(def)
         end
@@ -476,11 +475,6 @@ types.proc_meta = {
         type = "procedure",
 
         call = function(self, env, args)
-            if type(self.body) == "function" then
-                -- builtin, just pass it the raw arguments
-                return self.body(self, env, args)
-            end
-
             expect_argc_min(self, #self.params, #args)
 
             local exec_env = self.env:derive(self.name)
@@ -507,6 +501,20 @@ types.proc_meta = {
             end
 
             return self.body:eval(exec_env)
+        end
+    }, types.base_meta)
+}
+
+types.native_proc_meta = {
+    __tostring = function(self)
+        return ("#<native-procedure %q>"):format(self.name)
+    end,
+
+    __index = setmetatable({
+        type = "procedure",
+
+        call = function(self, env, args)
+            return self.body(self, env, args)
         end
     }, types.base_meta)
 }
@@ -561,6 +569,7 @@ types.port_meta = {
 
     __index = setmetatable({
         type = "port",
+        self_eval = true,
 
         eval = function(self, env)
             return self
@@ -609,6 +618,7 @@ types.err_meta = {
 
     __index = setmetatable({
         type = "error",
+        self_eval = true,
 
         eval = function(self, env)
             return self
@@ -636,6 +646,7 @@ types.map_meta = {
 
     __index = setmetatable({
         type = "map",
+        self_eval = true,
 
         eval = function(self, env)
             return self
@@ -650,6 +661,7 @@ types.lua_nil = setmetatable({}, {
 
     __index = setmetatable({
         type = "nil",
+        self_eval = true,
 
         eval = function(self, env)
             return self
