@@ -44,6 +44,19 @@
 
 (define call-with-current-continuation call/cc)
 
+; Binary stuff
+(define (bitwise-and x y)
+  (bit32.band x y))
+
+(define (bitwise-ior x y)
+  (bit32.bor x y))
+
+(define (bitwise-xor x y)
+  (bit32.bxor x y))
+
+(define (bitwise-not x)
+  (bit32.bnot x))
+
 ; I/O stuff
 (define (call-with-input-file fnam fn)
   (let* ((f   (open-input-file fnam))
@@ -83,12 +96,12 @@
 
 (define (char-downcase c)
   (if (char-upper-case? c)
-    (integer->char (bit32.bor 32 (char->integer c)))
+    (integer->char (bitwise-ior 32 (char->integer c)))
     c))
 
 (define (char-upcase c)
   (if (char-lower-case? c)
-    (integer->char (bit32.band 223 (char->integer c)))
+    (integer->char (bitwise-and 223 (char->integer c)))
     c))
 
 ; String stuff
