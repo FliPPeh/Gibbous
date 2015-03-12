@@ -359,7 +359,7 @@ function parser_methods:parse_number(n)
         buf = buf .. n
 
         n = self:advance()
-    until not n:find("[%.%deE]")
+    until not n:find("[%.%d%xeExX]")
 
     local num = tonumber(buf)
     if not num then
