@@ -204,6 +204,22 @@ m["read"] = function(self, env, args)
     return obj or types.port.eof_object
 end
 
+m["read-all"] = function(self, env, args)
+    expect_argc_max(self, 1, #args)
+
+    local data
+
+    if #args > 0 then
+        verify_port(args[1], "r")
+
+        data = args[1]:getval():read("*a")
+    else
+        data = io.read("*a")
+    end
+
+    return data and str_new(data) or types.port.eof_object
+end
+
 m["read-line"] = function(self, env, args)
     expect_argc_max(self, 1, #args)
 
