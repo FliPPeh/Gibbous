@@ -76,7 +76,7 @@ m["string-join"] = function(self, env, args)
     local sep = " "
 
     if #args == 2 then
-        expect(args[2], "string")
+        expect(args[2], {"char", "string"})
 
         sep = args[2]:getval()
     end
@@ -97,7 +97,7 @@ m["string-split"] = function(self, env, args)
     local sep = "%s"
 
     if #args == 2 then
-        expect(args[2], "string")
+        expect(args[2], {"char", "string"})
 
         sep = util.literal_pattern(args[2]:getval())
     end
@@ -112,7 +112,7 @@ m["string-trim"] = function(self, env, args)
     local sep_a, sep_b = "^%s*", "%s*$"
 
     if #args == 2 then
-        expect(args[2], "string")
+        expect(args[2], {"char", "string"})
 
         sep_a = "^" .. util.literal_pattern(args[2]:getval())
         sep_b = util.literal_pattern(args[2]:getval()) .. "$"
