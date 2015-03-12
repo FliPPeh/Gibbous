@@ -130,8 +130,15 @@ end
 
 function parser_methods:trim()
     local c = self.lastc
+    local in_comment = false
 
-    while c and c:find("^%s") do
+    while c and (c ~= "\n" and in_comment) or c:find("^[%s;]") do
+        if c == ";" then
+            in_comment = true
+        elseif c == "\n" then
+            in_comment = false
+        end
+
         c = self:advance()
     end
 
@@ -165,18 +172,7 @@ function parser_methods:parse_value()
         return nil
     end
 
-    if c == ";" then
-        c = self:advance()
-
-        while c ~= "\n" and c ~= "" do
-            c = self:advance()
-        end
-
-        if c ~= "" then
-            return self:parse_value()
-        end
-
-    elseif c == "(" then
+    if c == "(" then
         -- list
         return self:parse_list()
 
