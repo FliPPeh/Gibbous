@@ -74,36 +74,6 @@ m["close-output-port"] = function(self, env, args)
 end
 
 
-local function repr_display(arg)
-    if arg.type == "symbol" or
-       arg.type == "string" or
-       arg.type == "number" or
-       arg.type == "char" then
-
-       return arg:getval()
-
-    elseif arg.type == "list" then
-        local parts = {}
-
-        for i, v in ipairs(arg:getval()) do
-            table.insert(parts, repr_display(v))
-        end
-
-        return "(" .. table.concat(parts, " ") .. ")"
-    elseif arg.type == "pair" then
-        local v2s = repr_display(arg:getval()[2])
-
-        if arg:getval()[2].type == "pair" then
-            v2s = v2s:sub(2, #v2s - 1)
-            return ("(%s %s)"):format(repr_display(arg:getval()[1]), v2s)
-        else
-            return ("(%s . %s)"):format(repr_display(arg:getval()[1]), v2s)
-        end
-    else
-        return tostring(arg)
-    end
-end
-
 local function verify_port(port, typ)
     expect(port, "port")
     ensure(port, port.mode == typ,
@@ -149,21 +119,11 @@ local function iow_function(fn)
 end
 
 m["display"] = iow_function(function(f, arg)
-    f:write(repr_display(arg))
+    f:write(util.display_repr(arg))
 end)
 
 m["write"] = iow_function(function(f, arg)
-    local str
-
-    if arg.type == "list" or
-       arg.type == "pair" or
-       arg.type == "symbol" then
-        str = "'" .. tostring(arg)
-    else
-        str = tostring(arg)
-    end
-
-    f:write(str)
+    f:write(util.write_repr(arg))
 end)
 
 m["write-char"] = iow_function(function(f, arg)

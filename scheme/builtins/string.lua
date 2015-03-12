@@ -23,20 +23,44 @@ m["to-string"] = function(self, env, args)
     return str_new(tostring(args[1]))
 end
 
--- TODO: Scheme formatting
 m["format"] = function(self, env, args)
     expect_argc_min(self, 1, #args)
+    expect(args[1], "string")
 
-    local fargs = {}
-    for i = 2, #args do
-        if args[i].type ~= "string" and args[i].type ~= "number" then
-            table.insert(fargs, tostring(args[i]))
-        else
-            table.insert(fargs, args[i]:getval())
+    local i = 1
+    local function format_arg(fn)
+        return function()
+
+            print("format", i)
+
+            return fn(args[i])
         end
     end
 
-    return str_new(string.format(args[1]:getval(), table.unpack(fargs)))
+    return str_new(args[1]:getval()
+        :gsub("(~.)", function(typ)
+            if typ == "~~" then
+                return "~"
+            elseif typ == "~%" then
+                return "\n"
+            elseif typ == "~a" or typ == "~s" then
+                i = i + 1
+
+                ensure(self, i <= #args,
+                    "argument-error",
+                    "too few format arguments provided")
+
+                local arg = args[i]
+
+                if typ == "~s" then
+                    return util.write_repr(arg)
+                else
+                    return util.display_repr(arg)
+                end
+            else
+                return typ
+            end
+        end))
 end
 
 

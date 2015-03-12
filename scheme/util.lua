@@ -122,4 +122,44 @@ function util.literal_pattern(str)
     return str:gsub("[^%w%s]", "%%%1")
 end
 
+function util.display_repr(arg)
+    if arg.type == "symbol" or
+       arg.type == "string" or
+       arg.type == "number" or
+       arg.type == "char" then
+
+       return arg:getval()
+
+    elseif arg.type == "list" then
+        local parts = {}
+
+        for i, v in ipairs(arg:getval()) do
+            table.insert(parts, util.display_repr(v))
+        end
+
+        return "(" .. table.concat(parts, " ") .. ")"
+    elseif arg.type == "pair" then
+        local v2s = util.display_repr(arg:getval()[2])
+
+        if arg:getval()[2].type == "pair" then
+            v2s = v2s:sub(2, #v2s - 1)
+            return ("(%s %s)"):format(util.display_repr(arg:getval()[1]), v2s)
+        else
+            return ("(%s . %s)"):format(util.display_repr(arg:getval()[1]), v2s)
+        end
+    else
+        return tostring(arg)
+    end
+end
+
+function util.write_repr(arg)
+    if arg.type == "list" or
+       arg.type == "pair" or
+       arg.type == "symbol" then
+        return "'" .. tostring(arg)
+    else
+        return tostring(arg)
+    end
+end
+
 return util
