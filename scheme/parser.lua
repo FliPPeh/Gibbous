@@ -51,6 +51,10 @@ end
 
 function stringparser_methods:feed(chunk)
     self.input = self.input .. chunk
+
+    if self.lastc == "" then
+        self.lastc = sub(self.input, self.pos, self.pos)
+    end
 end
 
 --[[
