@@ -246,10 +246,23 @@ end
 --
 -- (quasiquote <val>)
 --]]
+local function process_quasiquote(env, var)
+    if is_unquote(var) or is_unquote_splicing(var) then
+        var[2]:preprocess(env)
+
+    elseif var.type == "list" then
+        for _, v in ipairs(var) do
+            process_quasiquote(env, v)
+        end
+    end
+end
+
 special_forms.__pre["quasiquote"] = function(def, env)
     ensure(def[1], #def == 2,
         "syntax-error",
         "malformed quasiquote: expected: (quasiquote <val>)")
+
+    process_quasiquote(env, def[2])
 end
 
 special_forms["quasiquote"] = function(self, env, args)
