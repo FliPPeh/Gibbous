@@ -186,9 +186,14 @@ function quote(self, env, val)
     end
 end
 
-special_forms["quote"] = function(self, env, args)
-    expect_argc(self, 1, #args)
 
+special_forms.__pre["quote"] = function(def, env)
+    ensure(def[1], #def == 2,
+        "syntax-error",
+        "malformed quote: expected: (quote <val>)")
+end
+
+special_forms["quote"] = function(self, env, args)
     return quote(self, env, args[1])
 end
 
