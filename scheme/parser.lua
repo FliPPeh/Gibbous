@@ -184,7 +184,7 @@ function parser_methods:parse_value()
         -- string
         return self:parse_string()
 
-    elseif not c:find("[%d%s%(%)%#%[%]%'%;%\\]") then
+    elseif not c:find("[%d%s%(%)%#%[%]%'%`%,%;%\\]") then
         -- identifier
         return self:parse_identifier(c)
 
@@ -199,6 +199,31 @@ function parser_methods:parse_value()
         return self:emit(types.list.new, {
             self:emit(types.ident.new, "quote", dl, dc),
             self:parse_value()}, dl, dc)
+
+    elseif c == "`" then
+        local dl, dc = self.line, self.col
+
+        self:advance()
+
+        return self:emit(types.list.new, {
+            self:emit(types.ident.new, "quasiquote", dl, dc),
+            self:parse_value()}, dl, dc)
+
+    elseif c == "," then
+        local dl, dc = self.line, self.col
+        local unquote_type = "unquote"
+
+        c = self:advance()
+
+        if c == "@" then
+            self:advance()
+            unquote_type = unquote_type .. "-splicing"
+        end
+
+        return self:emit(types.list.new, {
+            self:emit(types.ident.new, unquote_type, dl, dc),
+            self:parse_value()}, dl, dc)
+
     else
         self:err("unexpected character: %q", c)
     end
@@ -337,7 +362,7 @@ function parser_methods:parse_identifier(c)
         buf = buf .. c
 
         c = self:advance()
-    until c == "" or c:find("[%s%(%)%#%[%]%'%;%\\]")
+    until c == "" or c:find("[%s%(%)%#%[%]%'%`%,%;%\\]")
 
     local num = tonumber(buf)
     if num then

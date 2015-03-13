@@ -126,10 +126,24 @@ local function isdot(val)
     return val.type == "identifier" and val:getval() == "."
 end
 
-local function quote_list(self, env, val, i)
+local function is_unquote(val)
+    return val.type == "list" and
+        #val:getval() >= 1 and
+        val:getval()[1].type == "identifier" and
+        val:getval()[1]:getval() == "unquote"
+end
+
+local function is_unquote_splicing(val)
+    return val.type == "list" and
+        #val:getval() >= 1 and
+        val:getval()[1].type == "identifier" and
+        val:getval()[1]:getval() == "unquote-splicing"
+end
+
+local function quote_list(self, env, val, i, is_quasi)
     local types = require "scheme.types"
 
-    if not i then
+    if i == 0 then
         -- First time looking at this list, scan to see if there isn't a period
         -- somewhere that is not the last element of the list.
         for j = 1, #val do
@@ -146,15 +160,15 @@ local function quote_list(self, env, val, i)
 
     if (#val - i + 1) >= 3 and isdot(val[#val - 1]) then
         -- (x... . y) -> Pair
-        local head = quote(self, env, val[i])
+        local head = quote(self, env, val[i], 0, is_quasi)
         local tail
 
         if (#val - i + 1) == 3 and isdot(val[i + 1]) then
             -- (x . y) -> complete pair with nothing following, evaluate tail
-            tail = quote(self, env, val[i + 2])
+            tail = quote(self, env, val[i + 2], 0, is_quasi)
         else
             -- (x...  . y) -> grab head and keep evaluating.
-            tail = quote_list(self, env, val, i + 1)
+            tail = quote_list(self, env, val, i + 1, is_quasi)
         end
 
 
@@ -166,21 +180,51 @@ local function quote_list(self, env, val, i)
         end
     else
         for j = i, #val do
-            val[j] = quote(self, env, val[j])
+            if is_quasi and is_unquote_splicing(val[j]) then
+                ensure(val[j], #val[j]:getval() == 2,
+                    "syntax-error",
+                    "malformed unquote-splicing: " ..
+                    "expected: (unquote-splicing <val>)")
+
+                local res = val[j]:getval()[2]:eval(env)
+
+                ensure(res, res.type == "list",
+                    "type-error",
+                    "unquote-splicing must evaluate to a list, " ..
+                    "not value of type %s: %s",
+                        res.type,
+                        tostring(res))
+
+                table.remove(val, j)
+
+                for i = #res:getval(), 1, -1 do
+                    table.insert(val, j, res:getval()[i])
+                end
+            else
+                val[j] = quote(self, env, val[j], 0, is_quasi)
+            end
         end
 
         return types.list.new{unpack(val, i)}
     end
 end
 
-function quote(self, env, val)
+function quote(self, env, val, is_quasi)
     if val.type == "identifier" then
         local v = env:intern(val:getval())
         v:setpos(val:getpos())
 
         return v
     elseif val.type == "list" then
-        return quote_list(self, env, val:getval())
+        if is_quasi and is_unquote(val) then
+            ensure(val, #val:getval() == 2,
+                "syntax-error",
+                "malformed unquote: expected: (unquote <val>)")
+
+            return val:getval()[2]:eval(env)
+        else
+            return quote_list(self, env, val:getval(), 0, is_quasi)
+        end
     else
         return val
     end
@@ -194,7 +238,52 @@ special_forms.__pre["quote"] = function(def, env)
 end
 
 special_forms["quote"] = function(self, env, args)
-    return quote(self, env, args[1])
+    return quote(self, env, args[1], false)
+end
+
+--[[
+-- quasiquote
+--
+-- (quasiquote <val>)
+--]]
+special_forms.__pre["quasiquote"] = function(def, env)
+    ensure(def[1], #def == 2,
+        "syntax-error",
+        "malformed quasiquote: expected: (quasiquote <val>)")
+end
+
+special_forms["quasiquote"] = function(self, env, args)
+    return quote(self, env, args[1], true)
+end
+
+--[[
+-- unquote
+--
+-- (unquote <val>)
+--]]
+special_forms.__pre["unquote"] = function(def, env)
+    ensure(def[1], #def == 2,
+        "syntax-error",
+        "malformed unquote: expected: (unquote <val>)")
+end
+
+special_forms["unquote"] = function(self, env, args)
+    err(self, "syntax-error", "unquote outside quote is not valid")
+end
+
+--[[
+-- unquote-splicing
+--
+-- (unquote-splicing <val>)
+--]]
+special_forms.__pre["unquote-splicing"] = function(def, env)
+    ensure(def[1], #def == 2,
+        "syntax-error",
+        "malformed unquote-splicing: expected: (unquote-splicing <val>)")
+end
+
+special_forms["unquote-splicing"] = function(self, env, args)
+    err(self, "syntax-error", "unquote-splicing outside quote is not valid")
 end
 
 --[[
