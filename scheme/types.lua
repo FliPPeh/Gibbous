@@ -46,6 +46,10 @@ types.base_meta = {
     __index = {
         self_eval = false,
 
+        preprocess = function(self, env)
+            -- noop by default
+        end,
+
         setpos = function(self, file, line, col)
             self.def_file = file
             self.def_line = line
@@ -338,6 +342,25 @@ types.list_meta = {
 
         getval = function(self)
             return self
+        end,
+
+        preprocess = function(self, env)
+            if #self >= 1 and self[1].type == "identifier" then
+                -- Lookup special form for preprocessing
+                local name_lower = self[1]:getval():lower()
+
+                if special_forms.__pre[name_lower] then
+                    special_forms.__pre[name_lower](self:getval(), env)
+                else
+                    for _, item in ipairs(self) do
+                        item:preprocess(env)
+                    end
+                end
+            else
+                for _, item in ipairs(self) do
+                    item:preprocess(env)
+                end
+            end
         end,
 
         eval = function(self, env)

@@ -12,6 +12,24 @@ local is_true = util.is_true
 
 local unpack = table.unpack or unpack
 
+--[[
+-- Helpers
+--]]
+local function wrap_and_swap(bodies, offset)
+    local types = require "scheme.types"
+
+    if (#bodies - offset + 1) > 1 then
+        local repl = types.list.new{
+            types.ident.new("begin"),
+            unpack(bodies, offset)}
+
+        for i = offset, #bodies - 1 do
+            table.remove(bodies)
+        end
+
+        bodies[#bodies] = repl
+    end
+end
 
 local function maybe_eval(val, env)
     if val.self_eval then
@@ -21,11 +39,26 @@ local function maybe_eval(val, env)
     end
 end
 
-special_forms["if"] = function(self, env, args)
-    ensure(self, #args == 3,
-        "syntax-error",
-        "if: insufficient arguments")
 
+special_forms.__pre = {}
+
+--[[
+-- if-statement
+--
+-- (if <condition> <true-branch> <false-branch>)
+--]]
+special_forms.__pre["if"] = function(def, env)
+    ensure(def[1], #def == 4,
+        "syntax-error",
+        "malformed if-statement: expected: " ..
+        "(if <condition> <true-branch> <false-branch>)")
+
+    def[2]:preprocess(env)
+    def[3]:preprocess(env)
+    def[4]:preprocess(env)
+end
+
+special_forms["if"] = function(self, env, args)
     if is_true(maybe_eval(args[1], env)) then
         return maybe_eval(args[2], env)
     else
@@ -33,55 +66,65 @@ special_forms["if"] = function(self, env, args)
     end
 end
 
-local function wrap_bodies(bodies)
+--[[
+-- cond-statement
+--
+-- (cond (<clause|else> <body...>...))
+--]]
+special_forms.__pre["cond"] = function(def, env)
     local types = require "scheme.types"
 
-    if #bodies > 1 then
-        return types.list.new{types.ident.new("begin"), unpack(bodies)}
-    else
-        return bodies[1]
+    for i = 2, #def do
+        local clause = def[i]
+
+        ensure(clause, clause.type == "list",
+            "syntax-error",
+            "cond-clause must be a list, not value of type %s: %s",
+                clause.type,
+                tostring(clause))
+
+        ensure(clause, #clause:getval() >= 2,
+            "syntax-error",
+            "cond-clause must be a list of at least size 2")
+
+        local cond = clause:getval()[1]
+
+        if cond.type == "identifier" and cond:getval() == "else" then
+            ensure(cond, i == #def,
+                "syntax-error",
+                "else-clause must be the last cond-clause")
+
+            clause:getval()[1] = types.boolean.new(true)
+        end
+
+        wrap_and_swap(clause:getval(), 2)
+
+        clause:getval()[2]:preprocess(env)
     end
 end
 
 special_forms["cond"] = function(self, env, args)
     local types = require "scheme.types"
 
-    -- Sanity check before evaluating.
-    for i, clause in ipairs(args) do
-        ensure(clause, clause.type == "list",
-            "syntax-error",
-            "cond-clause must be a list")
-
-        ensure(clause, #clause:getval() >= 2,
-            "syntax-error",
-            "cond-clause must be a list of at least size 2")
-
-        if clause:getval()[1].type == "identifier" and
-           clause:getval()[1]:getval() == "else" then
-
-            ensure(clause, i == #args,
-                "syntax-error",
-                "else-clause must be the last clause in a cond")
-
-            clause:getval()[1] = types.boolean.new(true)
-        end
-    end
-
     for i, clause in ipairs(args) do
         if is_true(maybe_eval(clause:getval()[1], env)) then
-            return wrap_bodies{unpack(clause:getval(), 2)}:eval(env)
+            return maybe_eval(clause:getval()[2], env)
         end
     end
 
     return types.list.new{}
 end
 
+--[[
+-- quote function
+--
+-- (quote <val>)
+--]]
+local quote
+
 local function isdot(val)
     return val.type == "identifier" and val:getval() == "."
 end
-
-
-local quote
 
 local function quote_list(self, env, val, i)
     local types = require "scheme.types"
@@ -149,54 +192,74 @@ special_forms["quote"] = function(self, env, args)
     return quote(self, env, args[1])
 end
 
-local function parse_paramslist(paramslist)
+--[[
+-- proc helpers
+--]]
+local function process_paramslist(env, funcname, params, offset)
+    local defined = {}
     local funcparams = {}
-    local varparam   = nil
+    local varparam = nil
 
-    local defined_params = {}
+    for i = offset, #params do
+        local param = params[i]
 
-    for i, param in ipairs(paramslist) do
         ensure(param, param.type == "identifier",
             "syntax-error",
-            "procedure parameter must be an identifier")
+            "procedure parameter must be an identifier, " ..
+            "not value of type %s: %s",
+                param.type,
+                tostring(param))
 
-        local paramname = param:getval()
+        local paramname = param:getval():lower()
 
         if paramname == "." then
-            if i == #paramslist then
-                err(param,
-                    "syntax-error",
-                    "expected variadic parameter following")
-
-            elseif i ~= #paramslist - 1 then
-                err(paramslist[i + 1],
+            if i == #params then
+                err(param, "syntax-error", "expected variadic parameter")
+            elseif i ~= #params - 1 then
+                err(params[i + 1],
                     "syntax-error",
                     "variadic parameter must be last")
             end
 
-            ensure(paramslist[i + 1],
-                paramslist[i + 1].type == "identifier",
+            varparam = params[i + 1]
+
+            ensure(varparam, varparam.type == "identifier",
                 "syntax-error",
-                "variadic parameter must be an identifier")
+                "variadic parameter must be an identifier, " ..
+                "not value of type %s: %s",
+                    varparam.type,
+                    tostring(varparam))
 
-            local varpar = paramslist[i + 1]
+            local varparamname = varparam:getval():lower()
 
-            ensure(varpar, defined_params[varpar:getval()] == nil,
+            if funcname then
+                ensure(varparam, varparamname ~= funcname,
+                    "syntax-error",
+                    "parameter name may not be the same as procedure name")
+            end
+
+            ensure(varparam, not defined[varparamname],
                 "syntax-error",
                 "parameter with the same name already exists: %s",
-                    varpar:getval())
+                    varparam:getval())
 
-            defined_params[varpar:getval()] = true
+            defined[varparamname] = true
+            varparam = varparamname
 
-            varparam = varpar:getval()
             break
         else
-            ensure(param, defined_params[paramname] == nil,
+            if funcname then
+                ensure(param, paramname ~= funcname,
+                    "syntax-error",
+                    "parameter name may not be the same as procedure name")
+            end
+
+            ensure(param, not defined[paramname],
                 "syntax-error",
                 "parameter with the same name already exists: %s",
-                    paramname)
+                    param:getval())
 
-            defined_params[paramname] = true
+            defined[paramname] = true
 
             table.insert(funcparams, paramname)
         end
@@ -214,80 +277,141 @@ local function create_lambda(defp, env, funcname, funcparams, varparam, body)
     return func
 end
 
-special_forms["define"] = function(self, env, args)
-    ensure(self, #args >= 2,
+
+--[[
+-- define-statement
+--
+-- (define <val> <body>) | (define (<proc> [param...]) <body...>)
+--]]
+special_forms.__pre["define"] = function(def, env)
+    local self, var = def[1], def[2]
+
+    ensure(self, #def >= 3,
         "syntax-error",
-        "define: insufficient arguments")
+        "malformed define: expected: (define <val> <var>) or " ..
+                                    "(define (<name> [param...]) <body...>)")
 
-    local var, val = args[1], args[2]
-
-    ensure(var,
-        var.type == "identifier" or var.type == "list",
+    ensure(var, var.type == "identifier" or var.type == "list",
         "syntax-error",
-        "definition must be an identifier or a list")
+        "definition must be an identifier or a list, not value of type %s: %s",
+            var.type,
+            tostring(var))
 
-    -- Are we defining a variable or a procedure?
     if var.type == "identifier" then
-        -- variable!
-        ensure(self, #args == 2, "syntax-error")
-        ensure(self, not env:is_defined(var:getval()),
+        ensure(self, #def:getval() == 3,
             "syntax-error",
-            "variable or procedure already defined: %s",
-                var:getval())
-
-        env:define(var:getval(), maybe_eval(val, env))
-
+            "malformed definition: expected (define <ident> <val>)")
     else
-        -- procedure!
         local head = var:getval()[1]
 
         ensure(head, head.type == "identifier",
             "syntax-error",
-            "procedure name must be an identifier")
+            "procedure name must be an identifier, not value of type %s: %s",
+                head.type,
+                tostring(head))
 
-        local funcname = head:getval()
-        local paramslist = {unpack(var:getval(), 2)}
-
-        ensure(self, not env:is_defined(funcname),
+        ensure(head, head:getval() ~= ".",
             "syntax-error",
-            "variable or procedure already defined: %s",
-                funcname)
+            "invalid procedure name: .")
 
-        local funcparams, varparam = parse_paramslist(paramslist)
+        self.params, self.varparam = process_paramslist(
+            env,
+            head:getval():lower(),
+            var:getval(),
+            2)
 
-        val = wrap_bodies{unpack(args, 2)}
+        wrap_and_swap(def, 3)
+    end
 
-        env:define(funcname,
-            create_lambda(head, env, funcname, funcparams, varparam, val))
+    def[3]:preprocess(env)
+end
+
+special_forms["define"] = function(self, env, args)
+    local var, val = args[1], args[2]
+
+    -- Are we defining a variable or a procedure?
+    if var.type == "identifier" then
+        -- variable!
+        return env:define(var:getval(), maybe_eval(val, env))
+
+    else
+        -- procedure!
+        local head = var:getval()[1]
+        local funcname = head:getval()
+
+        return env:define(funcname,
+            create_lambda(
+                head,
+                env,
+                funcname,
+                self.params,
+                self.varparam,
+                args[2]))
     end
 end
 
-special_forms["set!"] = function(self, env, args)
-    ensure(self, #args == 2,
+--[[
+-- set! function
+--
+-- (set! <var> <new-val>)
+--]]
+special_forms.__pre["set!"] = function(def, env)
+    ensure(def[1], #def == 3,
         "syntax-error",
-        "set!: insufficient arguments")
+        "malformed set!: expected (set! <var> <val>)")
 
-    local var, val = args[1], args[2]
+    ensure(def[2], def[2].type == "identifier",
+        "syntax-error",
+        "definition must be an identifier, not a value of type %s: %s",
+            def[2].type,
+            tostring(def[2]))
 
-    expect(var, "identifier")
+    def[3]:preprocess(env)
+end
 
-    env:define(var:getval(), maybe_eval(val, env))
+special_forms["set!"] = function(self, env, args)
+    return env:define(args[1]:getval(), maybe_eval(args[2], env))
+end
+
+--[[
+-- lambda-statement
+--
+-- (lambda ([param...]) <body...>)
+--]]
+special_forms.__pre["lambda"] = function(def, env)
+    local self, params = def[1], def[2]
+
+    ensure(self, #def >= 3,
+        "syntax-error",
+        "malformed lambda-statement: expected: (lambda ([param...]) <body...>)")
+
+    ensure(params, params.type == "list",
+        "syntax-error",
+        "parameter list must be a list, not value of type %s: %s",
+            params.type,
+            tostring(params))
+
+    self.params, self.varparam =
+        process_paramslist(env, nil, params:getval(), 1)
+
+    wrap_and_swap(def, 3)
+
+    def[3]:preprocess(env)
 end
 
 special_forms["lambda"] = function(self, env, args)
-    ensure(self, #args >= 2,
+    return create_lambda(self, env, nil, self.params, self.varparam, args[2])
+end
+
+--[[
+-- begin-statement
+--
+-- (begin <body...>)
+--]]
+special_forms.__pre["begin"] = function(def, env)
+    ensure(def[1], #def > 1,
         "syntax-error",
-        "lambda: insufficient arguments")
-
-    local paramslist = args[1]
-
-    ensure(paramslist, paramslist.type == "list",
-        "syntax-error",
-        "parameter list must be a list")
-
-    local funcparams, varparam = parse_paramslist(paramslist:getval())
-    return create_lambda(self, env, nil, funcparams, varparam,
-        wrap_bodies{unpack(args, 2)})
+        "malformed begin: expected: (begin <body...>)")
 end
 
 special_forms["begin"] = function(self, env, args)
@@ -300,8 +424,10 @@ special_forms["begin"] = function(self, env, args)
     end
 end
 
-
-local function parse_bindings(bindings)
+--[[
+-- let/let* helper
+--]]
+local function process_bindings(env, bindings)
     local params = {}
     local args   = {}
 
@@ -309,55 +435,94 @@ local function parse_bindings(bindings)
 
     ensure(bindings, bindings.type == "list",
         "syntax-error",
-        "bindings list must be a list")
+        "binding list must be a list, not value of type %s: %s",
+            bindings.type,
+            tostring(bindings))
 
     for i, binding in ipairs(bindings:getval()) do
         ensure(binding, binding.type == "list",
             "syntax-error",
-            "binding must be a list")
+            "binding must be a list, not value of type %s: %s",
+                binding.type,
+                tostring(binding))
 
         ensure(binding, #binding:getval() == 2,
             "syntax-error",
             "binding must be a list of size 2")
 
-        ensure(binding, binding:getval()[1].type =="identifier",
+        local bindvar, bindval = binding:getval()[1], binding:getval()[2]
+
+        ensure(bindvar, bindvar.type == "identifier",
             "syntax-error",
-            "binding name must be an identifier")
+            "binding name must be an identifier, not value of type %s: %s",
+                bindvar.type,
+                tostring(bindvar))
 
-        local bindvar, bindval = unpack(binding:getval())
+        local bindvarname = bindvar:getval():lower()
 
-        ensure(bindvar, defined[bindvar:getval()] == nil,
+        ensure(bindvar, not defined[bindvarname],
             "syntax-error",
             "binding with the same name already exists: %s",
                 bindvar:getval())
 
-        defined[bindvar:getval()] = true
+        defined[bindvarname] = true
 
-        table.insert(params, bindvar:getval())
-        table.insert(args,   bindval)
+        bindval:preprocess(env)
+
+        table.insert(params, bindvarname)
+        table.insert(args, bindval)
     end
 
     return params, args
+end
+
+--[[
+-- let-statement
+--
+-- (let ((<var> <binding>)...) <body...)
+--]]
+special_forms.__pre["let"] = function(def, env)
+    local self, bind = def[1], def[2]
+
+    ensure(self, #def >= 3,
+        "syntax-error",
+        "malformed let-statement: expected: (let (<binding...>) <body...>)")
+
+    self.bindvars, self.bindings = process_bindings(env, bind)
+    wrap_and_swap(def, 3)
+
+    def[3]:preprocess(env)
 end
 
 special_forms["let"] = function(self, env, args)
     --  (let ((a a-val) (b b-val)) body)
     --      -> ((lambda (a b) body) a-val b-val)
     --
-    ensure(self, #args >= 2,
-        "syntax-error",
-        "let: insufficient arguments")
-
-    local bindings = args[1]
-    local params, largs = parse_bindings(bindings)
-
     local letenv = env:derive("let")
 
-    for i = 1, #params do
-        letenv:define(params[i], maybe_eval(largs[i], env))
+    for i = 1, #self.bindvars do
+        letenv:define(self.bindvars[i], maybe_eval(self.bindings[i], env))
     end
 
-    return wrap_bodies{unpack(args, 2)}:eval(letenv)
+    return maybe_eval(args[2], letenv)
+end
+
+--[[
+-- let*-statement
+--
+-- (let* ((<var> <binding>)...) <body...)
+--]]
+special_forms.__pre["let*"] = function(def, env)
+    local self, bind = def[1], def[2]
+
+    ensure(self, #def >= 3,
+        "syntax-error",
+        "malformed let*-statement: expected: (let* (<binding...>) <body...>)")
+
+    self.bindvars, self.bindings = process_bindings(env, bind)
+    wrap_and_swap(def, 3)
+
+    def[3]:preprocess(env)
 end
 
 special_forms["let*"] = function(self, env, args)
@@ -368,27 +533,16 @@ special_forms["let*"] = function(self, env, args)
     --             b-val))
     --          a-val)
     --
-    ensure(self, #args >= 2,
-        "syntax-error",
-        "let*: insufficient arguments")
-
-    local bindings = args[1]
-    local params, largs = parse_bindings(bindings)
     local letenv = env
 
-    for i = 1, #params do
-        local val = maybe_eval(largs[i], letenv)
+    for i = 1, #self.bindvars do
+        local val = maybe_eval(self.bindings[i], letenv)
 
-        letenv = letenv:derive("let*-" .. params[i])
-        letenv:define(params[i], val)
+        letenv = letenv:derive("let*-" .. self.bindvars[i])
+        letenv:define(self.bindvars[i], val)
     end
 
-    return wrap_bodies{unpack(args, 2)}:eval(letenv)
-end
-
-special_forms["letrec"] = function(self, env, args)
-    -- TODO
-    util.not_implemented(self)
+    return maybe_eval(args[2], letenv)
 end
 
 return special_forms

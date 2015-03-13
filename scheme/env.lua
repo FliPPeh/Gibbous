@@ -4,7 +4,6 @@ local parser = require "scheme.parser"
 local types = require "scheme.types"
 local util = require "scheme.util"
 
-
 local env_meta
 
 function env.new_environment(lua_env)
@@ -56,6 +55,10 @@ env_meta = {
         eval_ast = function(self, ast)
             local ok, res = xpcall(function()
                 local last
+
+                for _, toplevel in ipairs(ast) do
+                    toplevel:preprocess(self)
+                end
 
                 for _, toplevel in ipairs(ast) do
                     last = toplevel:eval(self)
