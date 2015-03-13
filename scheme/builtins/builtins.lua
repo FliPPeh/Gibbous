@@ -56,7 +56,6 @@ end
 builtins["raise"] = function(self, env, args)
     expect_argc(self, 1, #args)
 
-    print(self)
     util.err(self, "user-error", args[1])
 end
 

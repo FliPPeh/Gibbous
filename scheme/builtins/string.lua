@@ -28,14 +28,6 @@ m["format"] = function(self, env, args)
     expect(args[1], "string")
 
     local i = 1
-    local function format_arg(fn)
-        return function()
-
-            print("format", i)
-
-            return fn(args[i])
-        end
-    end
 
     return str_new(args[1]:getval()
         :gsub("(~.)", function(typ)
