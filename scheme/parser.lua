@@ -315,7 +315,7 @@ end
 
 function parser_methods:parse_string()
     local buf = ""
-    local dl, dl = self.line, self.col
+    local dl, dc = self.line, self.col
     local escapes = {
         ["\""] = "\"",
         ["t"]  = "\t",
