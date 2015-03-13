@@ -519,6 +519,10 @@ special_forms.__pre["begin"] = function(def, env)
     ensure(def[1], #def > 1,
         "syntax-error",
         "malformed begin: expected: (begin <body...>)")
+
+    for i = 2, #def do
+        def[i]:preprocess(env)
+    end
 end
 
 special_forms["begin"] = function(self, env, args)
