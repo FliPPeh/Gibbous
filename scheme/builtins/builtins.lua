@@ -3,6 +3,7 @@ local builtins = {}
 local util = require "scheme.util"
 local types = require "scheme.types"
 
+local desymbolize = util.desymbolize
 local err = util.err
 local expect = util.expect
 local expect_argc = util.expect_argc
@@ -33,7 +34,7 @@ builtins["eval"] = function(self, env, args)
         util.not_implemented(args[2], "eval environment not yet supported")
     end
 
-    return args[1]:eval(env)
+    return desymbolize(args[1]):eval(env)
 end
 
 builtins["apply"] = function(self, env, args)

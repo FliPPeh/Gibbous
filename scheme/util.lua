@@ -162,4 +162,23 @@ function util.write_repr(arg)
     end
 end
 
+function util.desymbolize(val)
+    local types = require "scheme.types"
+
+    if val.type == "symbol" then
+        local i = types.ident.new(val:getval())
+
+        i:setpos(val:getpos())
+        return i
+    elseif val.type == "list" then
+        for i, v in ipairs(val:getval()) do
+            val:getval()[i] = util.desymbolize(v)
+        end
+
+        return val
+    else
+        return val
+    end
+end
+
 return util
