@@ -469,7 +469,7 @@ special_forms.__pre["set!"] = function(def, env)
 
     ensure(def[2], def[2].type == "identifier",
         "syntax-error",
-        "definition must be an identifier, not a value of type %s: %s",
+        "definition must be an identifier, not value of type %s: %s",
             def[2].type,
             tostring(def[2]))
 
