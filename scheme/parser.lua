@@ -136,7 +136,7 @@ function parser_methods:trim()
     local c = self.lastc
     local in_comment = false
 
-    while c and (c ~= "\n" and in_comment) or c:find("^[%s;]") do
+    while c and c ~= "" and (c ~= "\n" and in_comment) or c:find("^[%s;]") do
         if c == ";" then
             in_comment = true
         elseif c == "\n" then
