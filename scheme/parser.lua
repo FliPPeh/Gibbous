@@ -181,8 +181,8 @@ function parser_methods:parse_value()
         return self:parse_list()
 
     elseif c == "#" then
-        -- boolean, character
-        return self:parse_bool_or_char()
+        -- boolean, character, syntax, quasisyntax
+        return self:parse_hash()
 
     elseif c == "\"" then
         -- string
@@ -259,7 +259,7 @@ function parser_methods:parse_list()
     return self:emit(types.list.new, list, dl, dc)
 end
 
-function parser_methods:parse_bool_or_char()
+function parser_methods:parse_hash()
     local dl, dc = self.line, self.col
     local c = self:advance()
 
@@ -314,6 +314,23 @@ function parser_methods:parse_bool_or_char()
                 end
             end
         end
+    elseif c == "'" then
+        self:advance()
+
+        return self:emit(types.list.new, {
+            self:emit(types.ident.new, "syntax", dl, dc),
+            self:parse_value()}, dl, dc)
+
+    elseif c == "`" then
+        self:advance()
+
+        return self:emit(types.list.new, {
+            self:emit(types.ident.new, "quasisyntax", dl, dc),
+            self:parse_value()}, dl, dc)
+
+    else
+        self:err("unexpected token %q following \"#\"; expected boolean, " ..
+                 "char, syntax or quasisyntax", c)
     end
 end
 

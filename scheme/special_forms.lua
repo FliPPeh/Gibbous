@@ -116,71 +116,37 @@ special_forms["cond"] = function(self, env, args)
 end
 
 --[[
--- quote function
---
--- (quote <val>)
+-- quote helpers
 --]]
 local quote
 
-local function isdot(val)
-    return val.type == "identifier" and val:getval() == "."
+local function is_call(val, fn)
+    return val.type == "list" and
+        #val:getval() >= 1 and
+        val:getval()[1].type == "identifier" and
+        val:getval()[1]:getval() == fn
 end
 
 local function is_unquote(val)
-    return val.type == "list" and
-        #val:getval() >= 1 and
-        val:getval()[1].type == "identifier" and
-        val:getval()[1]:getval() == "unquote"
+    return is_call(val, "unquote")
 end
 
 local function is_unquote_splicing(val)
-    return val.type == "list" and
-        #val:getval() >= 1 and
-        val:getval()[1].type == "identifier" and
-        val:getval()[1]:getval() == "unquote-splicing"
+    return is_call(val, "unquote-splicing")
 end
 
-local function quote_list(self, env, val, i, is_quasi)
+local function is_quasiquote(val)
+    return is_call(val, "quasiquote") or is_call(val, "quasisyntax")
+end
+
+
+local function quote_list(self, env, val, is_quasi, is_syntax, lvl)
     local types = require "scheme.types"
+    local j = 1
 
-    if i == 0 then
-        -- First time looking at this list, scan to see if there isn't a period
-        -- somewhere that is not the last element of the list.
-        for j = 1, #val do
-            if isdot(val[j]) and j ~= (#val - 1) then
-                util.err(val[j],
-                    "syntax-error",
-                    "malformed pair shortcut form, \".\" must be second " ..
-                    "item in list")
-            end
-        end
-
-        i = 1
-    end
-
-    if (#val - i + 1) >= 3 and isdot(val[#val - 1]) then
-        -- (x... . y) -> Pair
-        local head = quote(self, env, val[i], 0, is_quasi)
-        local tail
-
-        if (#val - i + 1) == 3 and isdot(val[i + 1]) then
-            -- (x . y) -> complete pair with nothing following, evaluate tail
-            tail = quote(self, env, val[i + 2], 0, is_quasi)
-        else
-            -- (x...  . y) -> grab head and keep evaluating.
-            tail = quote_list(self, env, val, i + 1, is_quasi)
-        end
-
-
-        if tail.type == "list" then
-            -- Tail evaluated to list, collapse the whole thing down to a list
-            return types.list.new{head, unpack(tail:getval())}
-        else
-            return types.pair.new(head, tail)
-        end
-    else
-        for j = i, #val do
-            if is_quasi and is_unquote_splicing(val[j]) then
+    while j <= #val do
+        if is_quasi and is_unquote_splicing(val[j]) then
+            if lvl == 0 then
                 ensure(val[j], #val[j]:getval() == 2,
                     "syntax-error",
                     "malformed unquote-splicing: " ..
@@ -200,37 +166,137 @@ local function quote_list(self, env, val, i, is_quasi)
                 for i = #res:getval(), 1, -1 do
                     table.insert(val, j, res:getval()[i])
                 end
+
+                j = j + #res:getval() - 1
             else
-                val[j] = quote(self, env, val[j], 0, is_quasi)
+                val[j] = quote(self, env, val[j], is_quasi, is_syntax, lvl - 1)
+            end
+
+        elseif is_quasi and is_unquote(val[j]) then
+            if lvl == 0 then
+                ensure(val[j], #val[j]:getval() == 2,
+                    "syntax-error",
+                    "malformed unquote: expected: (unquote <val>)")
+
+                val[j] = val[j]:getval()[2]:eval(env)
+            else
+                val[j] = quote(self, env, val[j], is_quasi, is_syntax, lvl - 1)
+            end
+
+        elseif is_quasiquote(val[j]) then
+            val[j] = quote(self, env, val[j], is_quasi, is_syntax, lvl + 1)
+        else
+            val[j] = quote(self, env, val[j], is_quasi, is_syntax, lvl)
+        end
+
+        j = j + 1
+    end
+
+    return types.list.new{unpack(val, i)}
+end
+
+function quote(self, env, val, is_quasi, is_syntax, lvl)
+    local types = require "scheme.types"
+
+    if val.type == "identifier" then
+        local v
+
+        if not is_syntax and val:getval() ~= "." then
+            v = env:intern(val:getval())
+        else
+            if val:getval() ~= "." then
+                -- TODO: Mark identifier for {bound,free,literal}-identifier=?
+                v = types.ident.new(val:getval())
+            else
+                v = val
             end
         end
 
-        return types.list.new{unpack(val, i)}
-    end
-end
-
-function quote(self, env, val, is_quasi)
-    if val.type == "identifier" then
-        local v = env:intern(val:getval())
         v:setpos(val:getpos())
 
         return v
     elseif val.type == "list" then
-        if is_quasi and is_unquote(val) then
-            ensure(val, #val:getval() == 2,
-                "syntax-error",
-                "malformed unquote: expected: (unquote <val>)")
-
+        -- Special case, only do this on the first pass before we get a chance
+        -- to recurse back here from quote_list.
+        if is_unquote(val) and not lvl then
             return val:getval()[2]:eval(env)
-        else
-            return quote_list(self, env, val:getval(), 0, is_quasi)
         end
+
+        lvl = lvl or 0
+        return quote_list(self, env, val:getval(), is_quasi, is_syntax, lvl)
     else
         return val
     end
 end
 
 
+local function isdot(val)
+    return (val.type == "identifier" or val.type == "symbol")
+        and val:getval() == "."
+end
+
+local quote_helper
+
+local function build_pair(val, i)
+    local types = require "scheme.types"
+
+    local head = val[i]
+    local tail
+
+    if (#val - i + 1) == 3 and isdot(val[i + 1]) then
+        -- (x . y) -> complete pair with nothing following
+        tail = val[i + 2]
+    else
+        -- (x...  . y) -> grab head and keep evaluating.
+        tail = build_pair(val, i + (isdot(val[i + 1]) and 2 or 1))
+    end
+
+    head = quote_helper(head)
+    tail = quote_helper(tail)
+
+    if tail.type == "list" then
+        -- Tail evaluated to list, collapse the whole thing down to a list
+        return types.list.new{head, unpack(tail:getval())}
+    else
+        return types.pair.new(head, tail)
+    end
+end
+
+function quote_helper(val)
+    if val.type == "list" then
+        local is_pair = false
+        local vall = val:getval()
+
+        for i, v in ipairs(vall) do
+            if isdot(v) then
+                --[[
+                -- TODO: Be less strict about stray periods and keep invalid
+                --       pair forms as lists?
+                --]]
+                ensure(v, i == (#vall - 1),
+                    "syntax-error",
+                    "malformed pair shortcut form, \".\" must be second " ..
+                    "last item in list")
+
+                is_pair = true
+            end
+
+            vall[i] = quote_helper(v)
+        end
+
+        if is_pair then
+            return build_pair(val, 1)
+        end
+    end
+
+    return val
+end
+
+--[[
+-- quote function
+--
+-- (quote <val>)
+--]]
 special_forms.__pre["quote"] = function(def, env)
     ensure(def[1], #def == 2,
         "syntax-error",
@@ -238,7 +304,7 @@ special_forms.__pre["quote"] = function(def, env)
 end
 
 special_forms["quote"] = function(self, env, args)
-    return quote(self, env, args[1], false)
+    return quote_helper(quote(self, env, args[1], false, false))
 end
 
 --[[
@@ -266,7 +332,41 @@ special_forms.__pre["quasiquote"] = function(def, env)
 end
 
 special_forms["quasiquote"] = function(self, env, args)
-    return quote(self, env, args[1], true)
+    return quote_helper(quote(self, env, args[1], true, false))
+end
+
+--[[
+-- syntax function
+--
+-- (syntax <val>)
+--]]
+special_forms.__pre["syntax"] = function(def, env)
+    ensure(def[1], #def == 2,
+        "syntax-error",
+        "malformed syntax: expected: (syntax <val>)")
+end
+
+special_forms["syntax"] = function(self, env, args)
+    -- TODO
+    return quote_helper(quote(self, env, args[1], false, true))
+end
+
+--[[
+-- quasisyntax
+--
+-- (quasisyntax <val>)
+--]]
+special_forms.__pre["quasisyntax"] = function(def, env)
+    ensure(def[1], #def == 2,
+        "syntax-error",
+        "malformed quasisyntax: expected: (quasisyntax <val>)")
+
+    process_quasiquote(env, def[2])
+end
+
+special_forms["quasisyntax"] = function(self, env, args)
+    -- TODO
+    return quote_helper(quote(self, env, args[1], true, true))
 end
 
 --[[
