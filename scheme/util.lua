@@ -22,7 +22,7 @@ function util.err(subj, t, fmt, ...)
 end
 
 function util.expect_argc_min(var, n, have)
-    name = var.name and (var.name .. ": ") or ""
+    local name = var.name and (var.name .. ": ") or ""
 
     if have < n then
         util.err(var, "argument-error", name ..
@@ -32,7 +32,7 @@ function util.expect_argc_min(var, n, have)
 end
 
 function util.expect_argc_max(var, n, have)
-    name = var.name and (var.name .. ": ") or ""
+    local name = var.name and (var.name .. ": ") or ""
 
     if have > n then
         util.err(var, "argument-error", name ..

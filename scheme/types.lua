@@ -133,7 +133,7 @@ types.ident_meta = {
             local val = self
 
             while val.type == "identifier" do
-                nval = env:resolve(val:getval())
+                local nval = env:resolve(val:getval())
 
                 if not nval then
                     err(self,
@@ -639,7 +639,7 @@ types.err = {
 
 types.err_meta = {
     __tostring = function(self)
-        return ("#<%s: %s"):format(self.errtype, self.prettymsg)
+        return ("#<%s: %s>"):format(self.errtype, self.prettymsg)
     end,
 
     __index = setmetatable({
