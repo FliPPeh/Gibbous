@@ -17,6 +17,8 @@ function env.new_environment(lua_env)
         lua_env = lua_env or _G,
         parser = parser.new_from_string(),
         root = true,
+        search_paths = package.path:gsub("%.lua", ".scm"),
+        imported = {},
         symbols = {},
     }, env_meta)
 
