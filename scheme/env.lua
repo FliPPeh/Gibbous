@@ -101,7 +101,6 @@ env_meta = {
         end,
 
         define = function(self, var, val)
-            -- print(("%s: define %s to: %s"):format(self.name, var, val))
             self.env[var:lower()] = val
         end,
 
@@ -117,8 +116,31 @@ env_meta = {
             return self.env[var] ~= nil
         end,
 
-        resolve = function(self, var)
-            -- print(("%s: looking up %s"):format(self.name, var))
+        resolve = function(self, ident, var)
+            if var:sub(1, 1) == ":" then
+                -- Lua: t:method(...) -> (:method t ...)
+                local meth = var:sub(2)
+
+                return types.proc.wrap_native(var, function(mself, ...)
+                    if not mself[meth] then
+                        util.err(ident,
+                            "not-defined-error",
+                            "method %q not defined for Lua type %s",
+                            meth,
+                            type(mself))
+                    end
+
+                    return mself[var:sub(2)](mself, ...)
+                end)
+            elseif var:sub(1, 1) == "." then
+                -- Lua: t.field -> (.field t)
+                local field = var:sub(2)
+
+                return types.proc.wrap_native(var, function(mself)
+                    return mself[field]
+                end)
+            end
+
             if self:is_defined(var) then
                 return self.env[var:lower()]
             else

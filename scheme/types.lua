@@ -133,7 +133,7 @@ types.ident_meta = {
             local val = self
 
             while val.type == "identifier" do
-                local nval = env:resolve(val:getval())
+                local nval = env:resolve(val, val:getval())
 
                 if not nval then
                     err(self,
@@ -458,8 +458,12 @@ types.proc = {
                 local f, l, c = self:getpos()
                 local location = { file = f, line = l, col  = c }
 
-                return types.err.new("lua-error", location,
-                    ("in Lua function %s: %s"):format(name, err))
+                if type(err) == "table" then
+                    return err
+                else
+                    return types.err.new("lua-error", location,
+                        ("in Lua function %s: %s"):format(name, err))
+                end
             end)}
 
             if res[1] then
@@ -618,10 +622,11 @@ types.err = {
         local pretty
 
         if pos then
-            pretty = ("%s:%d:%d: %s"):format(
+            pretty = ("%s:%d:%d: %s: %s"):format(
                 pos.file,
                 pos.line,
                 pos.col,
+                typ,
                 message)
         else
             pretty = message

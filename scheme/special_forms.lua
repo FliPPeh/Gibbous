@@ -39,6 +39,10 @@ local function maybe_eval(val, env)
     end
 end
 
+local function valid_ident(val)
+    return val.type == "identifier" and val:getval():sub(1, 1):find("%w")
+end
+
 
 special_forms.__pre = {}
 
@@ -437,6 +441,10 @@ local function process_paramslist(env, funcname, params, offset)
                     varparam.type,
                     tostring(varparam))
 
+            ensure(varparam, valid_ident(varparam),
+                "syntax-error",
+                "invalid identifier")
+
             local varparamname = varparam:getval():lower()
 
             if funcname then
@@ -460,6 +468,10 @@ local function process_paramslist(env, funcname, params, offset)
                     "syntax-error",
                     "parameter name may not be the same as procedure name")
             end
+
+            ensure(param, valid_ident(param),
+                "syntax-error",
+                "invalid identifier")
 
             ensure(param, not defined[paramname],
                 "syntax-error",
@@ -505,6 +517,10 @@ special_forms.__pre["define"] = function(def, env)
             tostring(var))
 
     if var.type == "identifier" then
+        ensure(var, valid_ident(var),
+            "syntax-error",
+            "invalid identifier")
+
         ensure(self, #def:getval() == 3,
             "syntax-error",
             "malformed definition: expected (define <ident> <val>)")
@@ -517,9 +533,9 @@ special_forms.__pre["define"] = function(def, env)
                 head.type,
                 tostring(head))
 
-        ensure(head, head:getval() ~= ".",
+        ensure(head, valid_ident(head),
             "syntax-error",
-            "invalid procedure name: .")
+            "invalid identifier")
 
         self.params, self.varparam = process_paramslist(
             env,
@@ -563,17 +579,23 @@ end
 -- (set! <var> <new-val>)
 --]]
 special_forms.__pre["set!"] = function(def, env)
+    local var, val = def[2], def[3]
+
     ensure(def[1], #def == 3,
         "syntax-error",
         "malformed set!: expected (set! <var> <val>)")
 
-    ensure(def[2], def[2].type == "identifier",
+    ensure(var, var.type == "identifier",
         "syntax-error",
         "definition must be an identifier, not value of type %s: %s",
-            def[2].type,
-            tostring(def[2]))
+            var.type,
+            tostring(var))
 
-    def[3]:preprocess(env)
+    ensure(var, valid_ident(var),
+        "syntax-error",
+        "invalid identifier")
+
+    val:preprocess(env)
 end
 
 special_forms["set!"] = function(self, env, args)
@@ -670,6 +692,10 @@ local function process_bindings(env, bindings)
                 tostring(bindvar))
 
         local bindvarname = bindvar:getval():lower()
+
+        ensure(bindvar, valid_ident(bindvar),
+            "syntax-error",
+            "invalid identifier")
 
         ensure(bindvar, not defined[bindvarname],
             "syntax-error",
@@ -786,7 +812,7 @@ local function locate(mod, paths)
 end
 
 special_forms.__pre["import"] = function(def, env)
-    local self, mod = def[1], def[2]
+    local self, mod, bind = def[1], def[2], def[3]
 
     ensure(self, #def == 2 or #def == 3,
         "syntax-error",
@@ -797,9 +823,13 @@ special_forms.__pre["import"] = function(def, env)
         "module import must be a string")
 
     if #def == 3 then
-        ensure(def[3], def[3].type == "identifier",
+        ensure(bind, bind.type == "identifier",
             "syntax-error",
             "module binding must be an identifier")
+
+        ensure(bind, valid_ident(bind),
+            "syntax-error",
+            "invalid identifier")
     end
 end
 
