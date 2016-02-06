@@ -823,7 +823,7 @@ function types.tolua(val, env)
         -- the file object from a port.
         local v = val:getval()
 
-        if not v then
+        if v == nil then
             util.err(val,
                 "type-error",
                 "cannot convert value of type %s to Lua value: %s",

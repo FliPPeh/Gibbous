@@ -25,10 +25,6 @@ Implemented:
      conversions.
    - `(.field t)` is translated to `t.field`
 
-Partly implemented:
- * Error handling
-   - error type implemented, still needs a try/handle/... mechanic
-
 Not implemented yet but planned:
  * Language primitives:
    - letrec, and possiblity a few I don't know yet.

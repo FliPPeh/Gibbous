@@ -716,7 +716,7 @@ end
 --[[
 -- let-statement
 --
--- (let ((<var> <binding>)...) <body...)
+-- (let ((<var> <binding>)...) <body...>)
 --]]
 special_forms.__pre["let"] = function(def, env)
     local self, bind = def[1], def[2]
@@ -782,11 +782,7 @@ special_forms["let*"] = function(self, env, args)
     return maybe_eval(args[2], letenv)
 end
 
---[[
--- import-statement
---
--- (import <module> [binding])
---]]
+
 local function package_config(cfg)
     local r = {}
 
@@ -811,6 +807,11 @@ local function locate(mod, paths)
     return nil
 end
 
+--[[
+-- import-statement
+--
+-- (import <module> [binding])
+--]]
 special_forms.__pre["import"] = function(def, env)
     local self, mod, bind = def[1], def[2], def[3]
 
@@ -870,5 +871,22 @@ special_forms["import"] = function(self, env, args)
     return types.toscheme(nil)
 end
 
+--[[
+-- catch-statement
+--
+-- (catch <body...>)
+--]]
+special_forms.__pre["catch"] = function(def, env)
+    wrap_and_swap(def, 2)
+
+    def[2]:preprocess(env)
+end
+
+special_forms["catch"] = function(self, env, args)
+    local types = require "scheme.types"
+    local res = {pcall(function() return args[1]:eval(env) end)}
+
+    return types.pair.new(types.boolean.new(res[1]), res[2])
+end
 
 return special_forms
