@@ -18,9 +18,12 @@ Implemented:
              display, newline
 
  * Lua interoperability
-   - lua_var evaluates to "lua_var", translated to Scheme value
-   - (lua_func ...) evaluates to the return value of lua_func(...) with the
+   - `lua_var` evaluates to `lua_var` translated to Scheme value
+   - `(lua_func ...)` evaluates to the return value of `lua_func(...)` with the
        necessary type conversions.
+   - `(:method t ...)` is translated to `t:method(...)` with the necessary
+     conversions.
+   - `(.field t)` is translated to `t.field`
 
 Partly implemented:
  * Error handling
@@ -31,9 +34,6 @@ Not implemented yet but planned:
    - letrec, and possiblity a few I don't know yet.
 
  * Macros
-
- * Lua interoperability
-   - Working with tables, methods, ...
 
 Not implemented:
  * call/cc
