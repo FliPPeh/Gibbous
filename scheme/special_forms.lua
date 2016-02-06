@@ -844,6 +844,7 @@ special_forms["import"] = function(self, env, args)
         select(3, args[1]:getval():find("([^.]+)$"))
 
     local modr
+    local imported = false
 
     -- Try scheme first
     if not env.imported[module] then
@@ -852,11 +853,12 @@ special_forms["import"] = function(self, env, args)
         if mod then
             env.imported[module] = env:eval_file(mod)
             modr = env.imported[module]
+            imported = true
         end
     end
 
     -- No dice, try to find Lua package
-    if not modr then
+    if not imported then
         local f, r = pcall(require, module)
 
         if f then
