@@ -559,6 +559,13 @@ types.port = {
         }, types.port_meta)
     end,
 
+    new_string = function(str, mode)
+        return setmetatable({
+            v = str or "",
+            mode = mode
+        }, types.port_meta)
+    end,
+
     wrap_native = function(fileobj)
         return setmetatable({
             v = fileobj,
@@ -594,7 +601,11 @@ types.port_meta = {
             mode = "native-"
         end
 
-        return ("#<%sport %q>"):format(mode, self.path)
+        if type(self.v) == "string" then
+            return ("#<%sstring-port>"):format(mode)
+        else
+            return ("#<%sport %q>"):format(mode, self.path)
+        end
     end,
 
     __index = setmetatable({
@@ -606,12 +617,18 @@ types.port_meta = {
         end,
 
         is_open = function(self)
+            if type(self.v) == "string" then
+                return true
+            end
+
             return self.v ~= nil
         end,
 
         close = function(self)
-            self.v:close()
-            self.v = nil
+            if type(self.v) ~= "string" then
+                self.v:close()
+                self.v = nil
+            end
         end
     }, types.base_meta)
 }
