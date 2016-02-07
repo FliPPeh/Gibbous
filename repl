@@ -1,5 +1,6 @@
 #!/usr/bin/lua
 local env = require "scheme.env"
+local readline, rl = pcall(require, "readline")
 
 env = env.new_environment()
 env:eval_file("core.scm")
@@ -30,16 +31,30 @@ end
 
 local evalbuf = ""
 while true do
+	local prompt
+
     if #evalbuf == 0 then
-        io.write(("(input):%d > "):format(env.parser.line))
+        prompt = ("(input):%d > "):format(env.parser.line)
     else
-        io.write(("        %d.. "):format(env.parser.line))
+        prompt = ("        %d.. "):format(env.parser.line)
     end
 
-    local line = io.read('*l')
+	local line
+
+	if readline then
+		line = rl.readline(prompt)
+	else
+		io.write(prompt)
+		line = io.read("*l")
+	end
+
     if not line then
         break
     end
+
+	if readline then
+		rl.add_history(line)
+	end
 
     evalbuf = evalbuf .. line
 
