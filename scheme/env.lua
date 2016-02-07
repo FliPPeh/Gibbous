@@ -144,7 +144,30 @@ env_meta = {
             if self:is_defined(var) then
                 return self.env[var:lower()]
             else
-                local lv = self:locate_lua(var)
+                local function locate_lua(name)
+                    local path = util.split_string(name, "%.")
+                    local val
+
+                    if #path > 1 then
+                        -- Nested value, lookup
+                        val = self.lua_env
+
+                        for _, e in ipairs(path) do
+                            val = val[e]
+
+                            if not val then
+                                break
+                            end
+                        end
+                    else
+                        -- Not a nested value, access state directly.
+                        val = self.lua_env[name]
+                    end
+
+                    return val
+                end
+
+                local lv = locate_lua(var)
 
                 if lv then
                     if type(lv) == "function" then
@@ -159,29 +182,6 @@ env_meta = {
 
                 return nil
             end
-        end,
-
-        locate_lua = function(self, name)
-            local path = util.split_string(name, "%.")
-            local val
-
-            if #path > 1 then
-                -- Nested value, lookup
-                val = self.lua_env
-
-                for _, e in ipairs(path) do
-                    val = val[e]
-
-                    if not val then
-                        break
-                    end
-                end
-            else
-                -- Not a nested value, access state directly.
-                val = self.lua_env[name]
-            end
-
-            return val
         end
     }
 }

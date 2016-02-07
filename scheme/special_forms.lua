@@ -810,67 +810,39 @@ end
 --[[
 -- import-statement
 --
--- (import <module> [binding])
+-- (import <module>)
 --]]
 special_forms.__pre["import"] = function(def, env)
     local self, mod, bind = def[1], def[2], def[3]
 
-    ensure(self, #def == 2 or #def == 3,
+    ensure(self, #def == 2,
         "syntax-error",
-        "malformed import-statement: expected: (import <module> [binding])")
+        "malformed import-statement: expected: (import <module>)")
 
     ensure(mod, mod.type == "string",
         "syntax-error",
         "module import must be a string")
-
-    if #def == 3 then
-        ensure(bind, bind.type == "identifier",
-            "syntax-error",
-            "module binding must be an identifier")
-
-        ensure(bind, valid_ident(bind),
-            "syntax-error",
-            "invalid identifier")
-    end
 end
 
 special_forms["import"] = function(self, env, args)
-    --print("Scheme: searching in " .. env.search_paths)
-    --print(locate(args[1]:getval(), env.search_paths))
     local types = require "scheme.types"
 
     local module = args[1]:getval()
-    local bindvar = args[2] and args[2]:getval() or
-        select(3, args[1]:getval():find("([^.]+)$"))
+    local bindvar = select(3, args[1]:getval():find("([^.]+)$"))
 
-    local modr
-    local imported = false
-
-    -- Try scheme first
     if not env.imported[module] then
-        local mod = locate(module, env.search_paths)
+        local mod, errmsg = package.searchpath(module, env.search_paths)
 
         if mod then
             env.imported[module] = env:eval_file(mod)
-            modr = env.imported[module]
-            imported = true
+		else
+			err(args[1], "import-error", "module '%s' not found:%s",
+				module,
+				errmsg)
         end
     end
 
-    -- No dice, try to find Lua package
-    if not imported then
-        local f, r = pcall(require, module)
-
-        if f then
-            modr = r
-        else
-            err(args[1], "import-error", "error importing %q: %s", module, r)
-        end
-    end
-
-    env:define(bindvar, types.toscheme(modr))
-
-    return types.toscheme(nil)
+    return types.toscheme(env.imported[module])
 end
 
 --[[
