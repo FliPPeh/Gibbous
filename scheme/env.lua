@@ -23,6 +23,7 @@ function env.new_environment(lua_env)
     }, env_meta)
 
     self.env["*env*"] = types.toscheme(self.env)
+    self.env["*lua*"] = types.toscheme(self.lua_env)
 
     for name, fn in pairs(builtins) do
         self:define(name, types.proc.new_builtin(name, fn))
@@ -30,6 +31,8 @@ function env.new_environment(lua_env)
 
     return self
 end
+
+local locate
 
 env_meta = {
     __index = {
@@ -146,30 +149,7 @@ env_meta = {
             if self:is_defined(var) then
                 return self.env[var:lower()]
             else
-                local function locate_lua(name)
-                    local path = util.split_string(name, "%.")
-                    local val
-
-                    if #path > 1 then
-                        -- Nested value, lookup
-                        val = self.lua_env
-
-                        for _, e in ipairs(path) do
-                            val = val[e]
-
-                            if not val then
-                                break
-                            end
-                        end
-                    else
-                        -- Not a nested value, access state directly.
-                        val = self.lua_env[name]
-                    end
-
-                    return val
-                end
-
-                local lv = locate_lua(var)
+                local lv = locate(ident, var, self.lua_env)
 
                 if lv then
                     if type(lv) == "function" then
@@ -182,10 +162,57 @@ env_meta = {
                     end
                 end
 
-                return nil
+                lv = locate(ident, var, self.env)
+
+                if lv then
+                    return types.toscheme(lv)
+                end
             end
         end
     }
 }
+
+function locate(ident, name, where)
+    local path = util.split_string(name, "%.")
+    local val
+
+    if #path > 1 then
+        -- Nested value, lookup
+        val = where
+
+        for i, e in ipairs(path) do
+            val = val[e]
+
+            if not val then
+                break
+            else
+                if types.isscheme(val) then
+                    if val.type == "map" then
+                        val = val:getval()
+                    elseif i < #path then
+                        util.err(ident,
+                        "type-error",
+                        "cannot index value of type %q: %s",
+                            val.type,
+                            tostring(val))
+                    end
+                else
+                    if type(val) ~= "table" and i < #path then
+                        util.err(ident,
+                        "type-error",
+                        "cannot index Lua value of type %q: %s",
+                            type(val),
+                            tostring(val))
+                    end
+                end
+            end
+        end
+    else
+        -- Not a nested value, access state directly.
+        val = where[name]
+    end
+
+    return val
+end
 
 return env

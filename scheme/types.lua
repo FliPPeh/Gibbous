@@ -725,27 +725,33 @@ local function is_array(tab)
     return true
 end
 
-function types.toscheme(val)
-    -- Might be a scheme value we're receiving from Lua, due to bidirectional
-    -- interop -> check metatables
+function types.isscheme(val)
     local valmt = getmetatable(val)
 
     if valmt then
-        if valmt == types.symbol_meta or
-           valmt == types.ident_meta or
-           valmt == types.str_meta or
-           valmt == types.number_meta or
-           valmt == types.char_meta or
-           valmt == types.boolean_meta or
-           valmt == types.pair_meta or
-           valmt == types.list_meta or
-           valmt == types.proc_meta or
-           valmt == types.port_meta or
-           valmt == types.err_meta or
-           val == types.lua_nil then
+        return valmt == types.symbol_meta or
+               valmt == types.ident_meta or
+               valmt == types.str_meta or
+               valmt == types.number_meta or
+               valmt == types.char_meta or
+               valmt == types.boolean_meta or
+               valmt == types.pair_meta or
+               valmt == types.list_meta or
+               valmt == types.proc_meta or
+               valmt == types.port_meta or
+               valmt == types.err_meta or
+               valmt == types.map_meta or
+               valmt == types.lua_nil
+    end
 
-            return val
-        end
+    return false
+end
+
+function types.toscheme(val)
+    -- Might be a scheme value we're receiving from Lua, due to bidirectional
+    -- interop -> check metatables
+    if types.isscheme(val)then
+        return val
     end
 
     if type(val) == "table" then
