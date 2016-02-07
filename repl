@@ -47,6 +47,8 @@ while true do
         local res = env:eval(evalbuf .. "\n")
 
         if res then
+			env:define("_", res)
+
             print((">> %s\n  %s"):format(tostring(res), res.type))
         end
 
