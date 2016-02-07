@@ -755,8 +755,6 @@ function types.toscheme(val)
     end
 
     if type(val) == "table" then
-        -- Can be an array or a map. We don't support maps yet, so we'll treat
-        -- it as a list.
         if not is_array(val) then
             return types.map.new(val)
         end
@@ -764,8 +762,8 @@ function types.toscheme(val)
         local t = {}
         local toscheme = types.toscheme
 
-        for i, v in ipairs(val) do
-            table.insert(t, toscheme(v))
+        for i = 1, #val do
+            table.insert(t, toscheme(val[i]))
         end
 
         return types.list.new(t)
