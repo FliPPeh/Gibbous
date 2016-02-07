@@ -31,7 +31,7 @@ end
 
 local evalbuf = ""
 while true do
-	local prompt
+    local prompt
 
     if #evalbuf == 0 then
         prompt = ("(input):%d > "):format(env.parser.line)
@@ -39,22 +39,22 @@ while true do
         prompt = ("        %d.. "):format(env.parser.line)
     end
 
-	local line
+    local line
 
-	if readline then
-		line = rl.readline(prompt)
-	else
-		io.write(prompt)
-		line = io.read("*l")
-	end
+    if readline then
+        line = rl.readline(prompt)
+    else
+        io.write(prompt)
+        line = io.read("*l")
+    end
 
     if not line then
         break
     end
 
-	if readline then
-		rl.add_history(line)
-	end
+    if readline then
+        rl.add_history(line)
+    end
 
     evalbuf = evalbuf .. line
 
@@ -62,7 +62,7 @@ while true do
         local res = env:eval(evalbuf .. "\n")
 
         if res then
-			env:define("_", res)
+            env:define("_", res)
 
             print((">> %s\n  %s"):format(tostring(res), res.type))
         end

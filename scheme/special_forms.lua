@@ -40,7 +40,7 @@ local function maybe_eval(val, env)
 end
 
 local function valid_ident(val)
-    return val.type == "identifier" and val:getval():sub(1, 1):find("%w")
+    return val.type == "identifier" and val:getval():sub(1, 1):find("[%w*]")
 end
 
 
@@ -835,10 +835,10 @@ special_forms["import"] = function(self, env, args)
 
         if mod then
             env.imported[module] = env:eval_file(mod)
-		else
-			err(args[1], "import-error", "module '%s' not found:%s",
-				module,
-				errmsg)
+        else
+            err(args[1], "import-error", "module '%s' not found:%s",
+                module,
+                errmsg)
         end
     end
 

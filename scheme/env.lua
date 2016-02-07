@@ -22,6 +22,8 @@ function env.new_environment(lua_env)
         symbols = {},
     }, env_meta)
 
+    self.env["*env*"] = types.toscheme(self.env)
+
     for name, fn in pairs(builtins) do
         self:define(name, types.proc.new_builtin(name, fn))
     end
