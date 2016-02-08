@@ -29,6 +29,7 @@ local function is_balanced(str)
     return open == close
 end
 
+local running = 0
 local evalbuf = ""
 while true do
     local prompt
@@ -62,9 +63,13 @@ while true do
         local res = env:eval(evalbuf .. "\n")
 
         if res then
+            env:define("$" .. tostring(running), res)
             env:define("_", res)
 
-            print((">> %s\n  %s"):format(tostring(res), res.type))
+            print((">> $%s = %s\n  %s"):format(
+                running, tostring(res), res.type))
+
+            running = running + 1
         end
 
         evalbuf = ""
