@@ -64,9 +64,6 @@ function parser.new_from_file(f)
     local self = parser_new(f)
 
     self.file = io.open(f, "r")
-    self.bufsiz = 4096
-    self.buf = nil
-    self.bufpos = 0
 
     return setmetatable(self, {
         __index = fileparser_methods
@@ -77,12 +74,7 @@ function parser.new_from_open_file(fp, name)
     local self = parser_new(name)
 
     self.file = fp
-    self.bufsiz = 1 -- much more expensive, but we don't want to read more than
-                    -- what's necessary in case someone else wants to read from
-                    -- the same handle.
-    self.buf = nil
-    self.bufpos = 0
-    self. store_lexical_information = false
+    self.store_lexical_information = false
 
     return setmetatable(self, {
         __index = fileparser_methods
@@ -99,14 +91,8 @@ function fileparser_methods:advance()
         end
     end
 
-
-    self.bufpos = self.bufpos + 1
-    if not self.buf or self.bufpos > #self.buf then
-        self.buf = self.file:read(self.bufsiz) or ""
-        self.bufpos = 1
-    end
-
-    self.lastc = sub(self.buf, self.bufpos, self.bufpos)
+    -- Let's hope the Lua implementation's file is buffered
+    self.lastc = self.file:read(1) or ""
 
     return self.lastc
 end
