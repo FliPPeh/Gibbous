@@ -153,13 +153,7 @@ function util.display_repr(arg)
 end
 
 function util.write_repr(arg)
-    if arg.type == "list" or
-       arg.type == "pair" or
-       arg.type == "symbol" then
-        return "'" .. tostring(arg)
-    else
-        return tostring(arg)
-    end
+	return tostring(arg)
 end
 
 function util.desymbolize(val)

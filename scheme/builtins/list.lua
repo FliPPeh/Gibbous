@@ -62,4 +62,13 @@ m["null?"] = function(self, env, args)
     return bool_new(#args[1]:getval() == 0)
 end
 
+m["list-ref"] = function(self, env, args)
+	expect_argc(self, 2, #args)
+	expect(args[1], "list")
+	expect(args[2], "number")
+
+	local r = args[1]:getval()[args[2]:getval() + 1]
+	return r ~= nil and r or types.lua_nil
+end
+
 return m
