@@ -140,6 +140,10 @@ types.ident_meta = {
                         "not-defined-error",
                         "unresolved procedure or variable: %s",
                             val:getval())
+                elseif val == nval then
+                    err(self,
+                        "what-the-expletive-error",
+                        " \"%s\" resolves to itself", val:getval())
                 end
 
                 val = nval
