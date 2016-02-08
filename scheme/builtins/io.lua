@@ -244,17 +244,16 @@ local function ior_function(fn, resfn)
 end
 
 m["read"] = ior_function(function(file, port)
-    if type(port:getval()) == "string" then
+    if port and type(port:getval()) == "string" then
         local p = parser.new_from_string(port:getval())
         local v = p:parse_value()
 
-        port.v = port.v:sub(p.pos)
+        port.v = port.v:sub(p.pos + 1)
 
         return v
     else
         return parser.new_from_open_file(
-            file,
-            port and port.path or "<stdin>"):parse_value()
+			file, port and port.path or "<stdin>"):parse_value()
     end
 end)
 
