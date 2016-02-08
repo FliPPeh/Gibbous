@@ -26,6 +26,7 @@ function parser.new_from_string(str)
 
     self.input = str or ""
     self.pos = 0
+    self.spos = 0
 
     return setmetatable(self, {
         __index = stringparser_methods
@@ -41,13 +42,15 @@ function stringparser_methods:peek()
 end
 
 function stringparser_methods:advance()
-    if self:last() then
+    if self:last() and self.pos > self.spos then
         if self:last() == "\n" then
             self.line = self.line + 1
             self.col  = 1
         else
             self.col = self.col + 1
         end
+
+        self.spos = self.pos
     end
 
     self.pos = self.pos + 1
